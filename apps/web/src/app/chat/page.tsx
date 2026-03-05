@@ -1,7 +1,6 @@
 "use client";
 
 import { type JSX } from "react";
-import { type JoinRoomResponse } from "@repo/websockets";
 import { ChatRoom } from "@/components/chat/chat-room";
 import { RoomSelector } from "@/components/chat/room-selector";
 import { useChatRoom } from "@/hooks/use-socket";
@@ -14,15 +13,6 @@ import { useChatRoom } from "@/hooks/use-socket";
 export default function ChatPage(): JSX.Element {
   // Use our Redux-based chat room hook
   const { currentRoomId, roomInfo, leaveRoom } = useChatRoom();
-
-  // Handle room joining
-  const handleRoomJoined = (
-    _roomId: string,
-    _room: JoinRoomResponse["room"]
-  ): void => {
-    // The actual room joining is handled by the joinRoom function in RoomSelector
-    // This function is just for any additional logic needed at the page level
-  };
 
   // Handle room leaving
   const handleLeaveRoom = (): void => {
@@ -41,7 +31,7 @@ export default function ChatPage(): JSX.Element {
 
       <div className="flex flex-col sm:flex-row gap-6 h-[calc(100%-8rem)] pb-2">
         <div className="w-full md:w-1/3 py-2">
-          <RoomSelector onRoomJoined={handleRoomJoined} />
+          <RoomSelector />
         </div>
         <div className="w-full md:w-2/3">
           <ChatRoom

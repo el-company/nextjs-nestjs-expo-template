@@ -105,7 +105,6 @@ const baseConfig: Omit<ExpoConfig, "extra"> = {
     bundler: "metro",
   },
   owner: "baris5",
-  newArchEnabled: true,
   // Add other valid ExpoConfig fields here if needed
 };
 

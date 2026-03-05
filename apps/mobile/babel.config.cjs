@@ -12,8 +12,8 @@ module.exports = function (api) {
           disableExtraction: process.env.NODE_ENV === "development",
         },
       ],
-      // If you're using reanimated
-      "react-native-reanimated/plugin",
+      // Reanimated 4 uses worklets plugin (must be last)
+      "react-native-worklets/plugin",
     ],
   };
 };

@@ -3,17 +3,11 @@
 import { useState, type JSX } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@repo/ui/components/base/button";
-import { type JoinRoomResponse, ClientEvents } from "@repo/websockets";
 import { useTRPC } from "@/utils/trpc";
 import { useChatRoom } from "@/hooks/use-socket";
-import { getSocket } from "@/services/socket-service";
 import { logger } from "@/utils/logger";
 
-interface RoomSelectorProps {
-  onRoomJoined?: (roomId: string, roomInfo: JoinRoomResponse["room"]) => void;
-}
-
-export function RoomSelector({ onRoomJoined }: RoomSelectorProps): JSX.Element {
+export function RoomSelector(): JSX.Element {
   const trpc = useTRPC();
 
   const [newRoomName, setNewRoomName] = useState("");
@@ -47,24 +41,7 @@ export function RoomSelector({ onRoomJoined }: RoomSelectorProps): JSX.Element {
   // Handle room join
   const handleJoinRoom = (roomId: string): void => {
     logger.info("Joining room:", roomId);
-
-    // Use the hook to join the room
     joinRoom(roomId);
-
-    // Listen for successful join and pass the data to parent
-    const socket = getSocket();
-    if (socket) {
-      socket.emit(
-        ClientEvents.JOIN_ROOM,
-        roomId,
-        (response: JoinRoomResponse) => {
-          if (response.success && response.room && onRoomJoined) {
-            logger.info("Calling onRoomJoined with:", roomId, response.room);
-            onRoomJoined(roomId, response.room);
-          }
-        }
-      );
-    }
   };
 
   if (isLoading) {
