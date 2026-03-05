@@ -48,7 +48,9 @@
   "packageManager": "pnpm@10.9.0",
   "pnpm": {
     "overrides": {
-      "next": "^15.3.1"
+      "next": "^15.3.1",
+      "react-native-reanimated": "^4.2.0",
+      "react-native-svg": "^15.15.3"
     }
   },
   "dependencies": {

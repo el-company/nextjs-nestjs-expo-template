@@ -5,6 +5,7 @@ import { Logger, ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { TRPCService } from "@repo/trpc";
+import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import * as os from "os";
 
 async function bootstrap() {
@@ -48,6 +49,16 @@ async function bootstrap() {
   const trpcService = app.get(TRPCService);
   trpcService.applyMiddleware(app);
 
+  // Configure Swagger
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle("API Documentation")
+    .setDescription("Auto-generated REST API documentation")
+    .setVersion("1.0")
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup("docs", app, document);
+
   // Use getOrThrow - it expects the value to be defined
   // due to the validation schema having defaults.
   const port = configService.getOrThrow<number>("PORT");
@@ -75,6 +86,7 @@ async function bootstrap() {
     `🚀 Application is running on: http://localhost:${port}/ and http://${localIp}:${port}/`
   );
   logger.log(`tRPC Panel available at: http://localhost:${port}/panel`);
+  logger.log(`Swagger docs available at: http://localhost:${port}/docs`);
 }
 
 bootstrap().catch((error) => {
