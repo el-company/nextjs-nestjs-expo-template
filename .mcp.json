@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "mcp-gluestackui": {
+      "command": "node",
+      "args": ["/Users/eryklewandowski/Documents/MCP-localhost/mcp-gluestackui/index.js"]
+    }
+  }
+}
