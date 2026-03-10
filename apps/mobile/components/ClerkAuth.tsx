@@ -8,8 +8,7 @@ import {
   TouchableOpacity,
   Platform,
 } from "react-native";
-import { useAuth, useSignIn, useSignUp } from "@clerk/clerk-expo";
-import { useOAuth } from "@clerk/clerk-expo";
+import { useAuth, useSignIn, useSignUp, useOAuth } from "@clerk/clerk-expo";
 import { useQueryClient } from "@tanstack/react-query";
 
 export function ClerkAuth() {

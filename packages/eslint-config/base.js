@@ -18,7 +18,8 @@ export const config = [
       turbo: turboPlugin,
     },
     rules: {
-      "turbo/no-undeclared-env-vars": "warn",
+      // Disabled: eslint-plugin-turbo uses deprecated getFilename() API incompatible with ESLint v10
+      "turbo/no-undeclared-env-vars": "off",
     },
   },
   {
