@@ -7,6 +7,7 @@ import {
   Matches,
   IsOptional,
 } from "class-validator";
+import { Transform } from "class-transformer";
 
 export class RegisterDto {
   @ApiProperty({
@@ -16,6 +17,7 @@ export class RegisterDto {
     maxLength: 50,
   })
   @IsString()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   @MinLength(3)
   @MaxLength(50)
   username: string;
@@ -25,6 +27,7 @@ export class RegisterDto {
     description: "Valid email address",
   })
   @IsEmail()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   email: string;
 
   @ApiProperty({
@@ -51,6 +54,7 @@ export class RegisterDto {
   })
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   @MaxLength(100)
   firstName?: string;
 
@@ -61,6 +65,7 @@ export class RegisterDto {
   })
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   @MaxLength(100)
   lastName?: string;
 }

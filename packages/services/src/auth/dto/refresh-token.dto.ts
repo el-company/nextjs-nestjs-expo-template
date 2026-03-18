@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString } from "class-validator";
+import { IsOptional, IsString } from "class-validator";
+import { Transform } from "class-transformer";
 
 export class RefreshTokenDto {
   @ApiProperty({
@@ -7,5 +8,7 @@ export class RefreshTokenDto {
     description: "Refresh token",
   })
   @IsString()
-  refreshToken: string;
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  refreshToken?: string;
 }

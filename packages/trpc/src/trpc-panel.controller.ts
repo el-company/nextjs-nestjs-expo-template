@@ -1,6 +1,8 @@
-import { All, Controller, Logger } from "@nestjs/common";
+import { All, Controller, Logger, NotFoundException } from "@nestjs/common";
 import { renderTrpcPanel } from "trpc-ui";
 import { TRPCService } from "./trpc.service.js";
+import { Public } from "@repo/services";
+
 @Controller()
 export class TRPCPanelController {
   private readonly logger = new Logger(TRPCPanelController.name);
@@ -8,7 +10,16 @@ export class TRPCPanelController {
   constructor(private readonly trpcService: TRPCService) {}
 
   @All("panel")
+  @Public()
   panel(): string {
+    const isEnabled =
+      process.env.ENABLE_TRPC_PANEL !== "false" &&
+      process.env.NODE_ENV !== "production";
+
+    if (!isEnabled) {
+      throw new NotFoundException();
+    }
+
     this.logger.debug("tRPC Panel requested");
 
     try {

@@ -12,7 +12,7 @@ import { ConfigService } from "@nestjs/config";
 export class TRPCService {
   private readonly logger = new Logger(TRPCService.name);
   private readonly redis: Redis;
-  private readonly TOKEN_EXPIRY = 5 * 60; // 5 minutes in seconds
+  private readonly TOKEN_EXPIRY = 5 * 60; // 5 minutes in seconds (upper bound)
   private readonly useRedisCaching: boolean;
 
   constructor(
@@ -135,12 +135,19 @@ export class TRPCService {
         // Cache the auth data in Redis if enabled
         if (this.useRedisCaching && this.redis) {
           const cacheKey = `auth:token:${token}`;
-          await this.redis.set(
-            cacheKey,
-            JSON.stringify(authData),
-            "EX",
-            this.TOKEN_EXPIRY
-          );
+          const nowSeconds = Math.floor(Date.now() / 1000);
+          const exp = payload.exp || 0;
+          const ttlFromExp = exp > nowSeconds ? exp - nowSeconds : 0;
+          const ttl = ttlFromExp > 0 ? Math.min(this.TOKEN_EXPIRY, ttlFromExp) : this.TOKEN_EXPIRY;
+
+          if (ttl > 0) {
+            await this.redis.set(
+              cacheKey,
+              JSON.stringify(authData),
+              "EX",
+              ttl
+            );
+          }
         }
       }
     } catch {

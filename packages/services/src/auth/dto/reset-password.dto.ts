@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsString, MinLength, Matches } from "class-validator";
+import { Transform } from "class-transformer";
 
 export class ResetPasswordDto {
   @ApiProperty({
@@ -7,6 +8,7 @@ export class ResetPasswordDto {
     description: "Password reset token received via email",
   })
   @IsString()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   token: string;
 
   @ApiProperty({

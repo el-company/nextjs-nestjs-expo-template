@@ -6,7 +6,10 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Req,
+  Res,
 } from "@nestjs/common";
+import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import {
   ApiTags,
   ApiOperation,
@@ -14,11 +17,14 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from "@nestjs/swagger";
-import { AuthService, AuthResponse, TokenPair, UserProfile } from "./auth.service.js";
+import { AuthService } from "./auth.service.js";
+import type { AuthResponse, TokenPair, UserProfile } from "./types.js";
 import { JwtAuthGuard } from "./jwt-auth.guard.js";
 import { GetUser } from "./decorators/get-user.decorator.js";
 import { Public } from "./decorators/public.decorator.js";
 import type { JwtPayload } from "./types.js";
+import type { Request, Response } from "express";
+import { ConfigService } from "@nestjs/config";
 import {
   RegisterDto,
   LoginDto,
@@ -28,14 +34,20 @@ import {
   VerifyEmailDto,
   ChangePasswordDto,
 } from "./dto/index.js";
+import { parseExpiryToMs } from "./utils.js";
 
 @ApiTags("auth")
 @Controller("auth")
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService
+  ) {}
 
   @Post("register")
   @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Register a new user" })
   @ApiBody({ type: RegisterDto })
@@ -47,12 +59,19 @@ export class AuthController {
     status: 409,
     description: "Email or username already exists",
   })
-  async register(@Body() dto: RegisterDto): Promise<AuthResponse> {
-    return this.authService.register(dto);
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<AuthResponse> {
+    const result = await this.authService.register(dto);
+    this.setRefreshCookie(res, result.tokens.refreshToken);
+    return result;
   }
 
   @Post("login")
   @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Login with email and password" })
   @ApiBody({ type: LoginDto })
@@ -64,8 +83,13 @@ export class AuthController {
     status: 401,
     description: "Invalid credentials",
   })
-  async login(@Body() dto: LoginDto): Promise<AuthResponse> {
-    return this.authService.login(dto);
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<AuthResponse> {
+    const result = await this.authService.login(dto);
+    this.setRefreshCookie(res, result.tokens.refreshToken);
+    return result;
   }
 
   @Post("refresh")
@@ -81,8 +105,16 @@ export class AuthController {
     status: 401,
     description: "Invalid refresh token",
   })
-  async refresh(@Body() dto: RefreshTokenDto): Promise<TokenPair> {
-    return this.authService.refreshTokens(dto.refreshToken);
+  async refresh(
+    @Body() dto: RefreshTokenDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<TokenPair> {
+    const refreshToken =
+      dto.refreshToken || req.cookies?.refresh_token || "";
+    const tokens = await this.authService.refreshTokens(refreshToken);
+    this.setRefreshCookie(res, tokens.refreshToken);
+    return tokens;
   }
 
   @Post("forgot-password")
@@ -186,8 +218,26 @@ export class AuthController {
     status: 401,
     description: "Not authenticated",
   })
-  async logout(@GetUser() user: JwtPayload): Promise<{ message: string }> {
+  async logout(
+    @GetUser() user: JwtPayload,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<{ message: string }> {
     await this.authService.logout(user.sub);
+    res.clearCookie("refresh_token", { path: "/" });
     return { message: "Successfully logged out" };
+  }
+
+  private setRefreshCookie(res: Response, refreshToken: string): void {
+    const maxAge = parseExpiryToMs(
+      this.configService.get<string>("JWT_REFRESH_EXPIRATION") || "7d"
+    );
+
+    res.cookie("refresh_token", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge,
+      path: "/",
+    });
   }
 }

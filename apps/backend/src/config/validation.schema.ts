@@ -13,8 +13,20 @@ export const validationSchema = Joi.object({
 
   // JWT Authentication
   JWT_SECRET: Joi.string().min(32).required(),
+  JWT_REFRESH_SECRET: Joi.string().min(32).required(),
   JWT_ACCESS_EXPIRATION: Joi.string().default("15m"),
   JWT_REFRESH_EXPIRATION: Joi.string().default("7d"),
+
+  // Web app URL (for email links)
+  WEB_APP_URL: Joi.string().uri().default("http://localhost:3000"),
+
+  // SMTP configuration
+  SMTP_HOST: Joi.string().optional(),
+  SMTP_PORT: Joi.number().default(587),
+  SMTP_USER: Joi.string().optional(),
+  SMTP_PASSWORD: Joi.string().optional(),
+  SMTP_FROM: Joi.string().email().optional(),
+  SMTP_SECURE: Joi.boolean().default(false),
 
   // Redis configuration
   REDIS_URL: Joi.string().uri().optional(),

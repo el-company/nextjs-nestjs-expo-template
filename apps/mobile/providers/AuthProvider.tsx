@@ -4,35 +4,15 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import * as SecureStore from "expo-secure-store";
-import { env } from "../utils/env";
-
-interface User {
-  id: string;
-  email: string;
-  username: string;
-  firstName: string | null;
-  lastName: string | null;
-  imageUrl: string | null;
-  isEmailVerified: boolean;
-  roles: string[];
-}
-
-interface TokenPair {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
-
-interface AuthResponse {
-  user: User;
-  tokens: TokenPair;
-}
+import type { AuthResponse, TokenPair, AuthUser, RegisterData } from "@repo/services";
+import { getApiUrl } from "../utils/api";
 
 interface AuthContextValue {
-  user: User | null;
+  user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<AuthResponse>;
@@ -42,55 +22,40 @@ interface AuthContextValue {
   refreshTokens: () => Promise<TokenPair | null>;
 }
 
-interface RegisterData {
-  username: string;
-  email: string;
-  password: string;
-  firstName?: string;
-  lastName?: string;
-}
-
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
 const TOKEN_EXPIRY_KEY = "token_expiry";
 
-function getApiUrl(): string {
-  const trpcUrl = env.EXPO_PUBLIC_TRPC_URL || "http://localhost:3001/trpc";
-  // Remove /trpc from the end
-  return trpcUrl.replace(/\/trpc$/, "");
-}
-
 interface AuthProviderProps {
   children: ReactNode;
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const refreshPromiseRef = useRef<Promise<TokenPair | null> | null>(null);
 
   const getStoredTokens = useCallback(async () => {
     try {
       const accessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
       const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
       const expiryStr = await SecureStore.getItemAsync(TOKEN_EXPIRY_KEY);
-      const expiry = expiryStr ? parseInt(expiryStr, 10) : 0;
-      return { accessToken, refreshToken, expiry };
+      const expiresAt = expiryStr ? parseInt(expiryStr, 10) : 0;
+      return { accessToken, refreshToken, expiresAt };
     } catch (err) {
       console.error("Error getting stored tokens:", err);
-      return { accessToken: null, refreshToken: null, expiry: 0 };
+      return { accessToken: null, refreshToken: null, expiresAt: 0 };
     }
   }, []);
 
   const storeTokens = useCallback(async (tokens: TokenPair) => {
     try {
+      const expiresAt = tokens.expiresAt || Date.now() + tokens.expiresIn;
       await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, tokens.accessToken);
       await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokens.refreshToken);
-      await SecureStore.setItemAsync(
-        TOKEN_EXPIRY_KEY,
-        String(Date.now() + tokens.expiresIn)
-      );
+      await SecureStore.setItemAsync(TOKEN_EXPIRY_KEY, String(expiresAt));
     } catch (err) {
       console.error("Error storing tokens:", err);
     }
@@ -107,39 +72,51 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const refreshTokens = useCallback(async (): Promise<TokenPair | null> => {
-    const stored = await getStoredTokens();
-    if (!stored.refreshToken) return null;
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
 
-    try {
-      const response = await fetch(`${getApiUrl()}/auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken: stored.refreshToken }),
-      });
+    refreshPromiseRef.current = (async () => {
+      try {
+        const stored = await getStoredTokens();
+        if (!stored.refreshToken) return null;
 
-      if (!response.ok) {
+        const response = await fetch(`${getApiUrl()}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken: stored.refreshToken }),
+        });
+
+        if (!response.ok) {
+          await clearTokens();
+          setUser(null);
+          return null;
+        }
+
+        const tokens: TokenPair = await response.json();
+        await storeTokens(tokens);
+        return tokens;
+      } catch (err) {
+        console.error("Error refreshing tokens:", err);
         await clearTokens();
         setUser(null);
         return null;
+      } finally {
+        refreshPromiseRef.current = null;
       }
+    })();
 
-      const tokens: TokenPair = await response.json();
-      await storeTokens(tokens);
-      return tokens;
-    } catch (err) {
-      console.error("Error refreshing tokens:", err);
-      await clearTokens();
-      setUser(null);
-      return null;
-    }
+    return refreshPromiseRef.current;
   }, [getStoredTokens, storeTokens, clearTokens]);
 
   const getToken = useCallback(async (): Promise<string | null> => {
     const stored = await getStoredTokens();
-    if (!stored.accessToken) return null;
+    if (!stored.accessToken) {
+      const newTokens = await refreshTokens();
+      return newTokens?.accessToken || null;
+    }
 
-    // Check if token is about to expire (within 1 minute)
-    if (stored.expiry && stored.expiry - Date.now() < 60 * 1000) {
+    if (stored.expiresAt && stored.expiresAt - Date.now() < 60 * 1000) {
       const newTokens = await refreshTokens();
       return newTokens?.accessToken || null;
     }
@@ -147,7 +124,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return stored.accessToken;
   }, [getStoredTokens, refreshTokens]);
 
-  const fetchUser = useCallback(async (): Promise<User | null> => {
+  const fetchUser = useCallback(async (): Promise<AuthUser | null> => {
     const token = await getToken();
     if (!token) return null;
 
@@ -228,17 +205,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(null);
   }, [getToken, clearTokens]);
 
-  // Initialize auth state on mount
   useEffect(() => {
+    let isMounted = true;
+
     const initAuth = async () => {
       setIsLoading(true);
+      await refreshTokens();
       const fetchedUser = await fetchUser();
-      setUser(fetchedUser);
-      setIsLoading(false);
+      if (isMounted) {
+        setUser(fetchedUser);
+        setIsLoading(false);
+      }
     };
 
-    initAuth();
-  }, [fetchUser]);
+    void initAuth();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const value: AuthContextValue = {
     user,

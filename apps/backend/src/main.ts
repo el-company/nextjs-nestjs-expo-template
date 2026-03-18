@@ -7,6 +7,7 @@ import { NestExpressApplication } from "@nestjs/platform-express";
 import { TRPCService } from "@repo/trpc";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import * as os from "os";
+import cookieParser from "cookie-parser";
 
 async function bootstrap() {
   // Create the application with minimal logging in production
@@ -30,9 +31,11 @@ async function bootstrap() {
     new ValidationPipe({
       transform: true,
       whitelist: true,
-      forbidNonWhitelisted: false,
+      forbidNonWhitelisted: true,
     })
   );
+
+  app.use(cookieParser());
 
   // Configure CORS
   app.enableCors({

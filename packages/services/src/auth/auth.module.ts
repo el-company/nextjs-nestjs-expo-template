@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { AuthService } from "./auth.service.js";
 import { AuthController } from "./auth.controller.js";
 import { JwtStrategy } from "./strategies/jwt.strategy.js";
@@ -15,6 +16,14 @@ import { PostHogModule } from "@repo/analytics";
     ConfigModule,
     PostHogModule,
     PassportModule.register({ defaultStrategy: "jwt" }),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60_000,
+          limit: 10,
+        },
+      ],
+    }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
