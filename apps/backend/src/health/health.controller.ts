@@ -1,10 +1,12 @@
 import { Controller, Get } from "@nestjs/common";
 import { ApiOperation, ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { Public } from "@repo/services";
 
 @ApiTags("Health")
 @Controller("health")
 export class HealthController {
   @Get()
+  @Public()
   @ApiOperation({ summary: "Health check", description: "Returns service status and current timestamp" })
   @ApiOkResponse({
     description: "Service is running",

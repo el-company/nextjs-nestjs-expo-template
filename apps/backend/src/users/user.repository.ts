@@ -53,13 +53,6 @@ export class UserRepository implements IUserRepository {
     });
   }
 
-  async findByRefreshToken(refreshToken: string): Promise<UserEntity | null> {
-    return this.userRepo.findOne({
-      where: { refreshToken },
-      relations: ["roles"],
-    });
-  }
-
   async create(data: CreateUserData): Promise<UserEntity> {
     const user = this.userRepo.create({
       email: data.email,

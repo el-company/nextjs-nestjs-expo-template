@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtVerify } from "jose";
 
 // Public routes that don't require authentication
 const publicRoutes = [
@@ -38,31 +37,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for access token
-  const accessToken =
-    request.cookies.get("access_token")?.value ||
-    request.headers.get("authorization")?.replace("Bearer ", "");
+  // Check for refresh token cookie (httpOnly)
+  const refreshToken = request.cookies.get("refresh_token")?.value;
 
-  if (!accessToken) {
+  if (!refreshToken) {
     // Redirect to sign-in
     const signInUrl = new URL("/sign-in", request.url);
     signInUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(signInUrl);
   }
-
-  // Verify the token
-  try {
-    const secret = new TextEncoder().encode(
-      process.env.JWT_SECRET || "your-secret-key"
-    );
-    await jwtVerify(accessToken, secret);
-    return NextResponse.next();
-  } catch {
-    // Token is invalid or expired
-    const signInUrl = new URL("/sign-in", request.url);
-    signInUrl.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(signInUrl);
-  }
+  return NextResponse.next();
 }
 
 export const config = {

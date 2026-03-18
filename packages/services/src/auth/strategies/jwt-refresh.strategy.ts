@@ -11,15 +11,19 @@ export class JwtRefreshStrategy extends PassportStrategy(
   "jwt-refresh"
 ) {
   constructor(private readonly configService: ConfigService) {
-    const secret = configService.get<string>("JWT_SECRET");
+    const secret = configService.get<string>("JWT_REFRESH_SECRET");
     if (!secret) {
-      throw new Error("JWT_SECRET environment variable is not set");
+      throw new Error("JWT_REFRESH_SECRET environment variable is not set");
     }
 
     super({
-      jwtFromRequest: ExtractJwt.fromBodyField("refreshToken"),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (req: Request) => req.cookies?.refresh_token,
+        ExtractJwt.fromBodyField("refreshToken"),
+      ]),
       ignoreExpiration: false,
       secretOrKey: secret,
+      audience: "refresh",
       passReqToCallback: true,
     });
   }
@@ -29,7 +33,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
       throw new UnauthorizedException("Invalid refresh token payload");
     }
 
-    const refreshToken = req.body?.refreshToken;
+    const refreshToken = req.cookies?.refresh_token || req.body?.refreshToken;
     if (!refreshToken) {
       throw new UnauthorizedException("Refresh token not found");
     }

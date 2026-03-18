@@ -5,13 +5,21 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  Inject,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import * as bcrypt from "bcrypt";
 import * as crypto from "crypto";
 import { PostHogService } from "@repo/analytics";
-import type { JwtPayload } from "./types.js";
+import type {
+  JwtPayload,
+  TokenPair,
+  AuthResponse,
+  UserProfile,
+  EmailService,
+  AuthUser,
+} from "./types.js";
 import {
   RegisterDto,
   LoginDto,
@@ -20,38 +28,8 @@ import {
   ResetPasswordDto,
   VerifyEmailDto,
 } from "./dto/index.js";
-
-export interface TokenPair {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
-
-export interface AuthResponse {
-  user: {
-    id: string;
-    email: string;
-    username: string;
-    firstName: string | null;
-    lastName: string | null;
-    imageUrl: string | null;
-    isEmailVerified: boolean;
-    roles: string[];
-  };
-  tokens: TokenPair;
-}
-
-export interface UserProfile {
-  id: string;
-  email: string;
-  username: string;
-  firstName: string | null;
-  lastName: string | null;
-  imageUrl: string | null;
-  isEmailVerified: boolean;
-  roles: string[];
-  createdAt: Date;
-}
+import { EMAIL_SERVICE, USER_REPOSITORY } from "./tokens.js";
+import { parseExpiryToMs } from "./utils.js";
 
 // Repository interface - to be implemented by the consumer
 export interface UserRepository {
@@ -60,7 +38,6 @@ export interface UserRepository {
   findById(id: string): Promise<UserEntity | null>;
   findByEmailVerificationToken(token: string): Promise<UserEntity | null>;
   findByPasswordResetToken(token: string): Promise<UserEntity | null>;
-  findByRefreshToken(refreshToken: string): Promise<UserEntity | null>;
   create(data: CreateUserData): Promise<UserEntity>;
   update(id: string, data: Partial<UserEntity>): Promise<UserEntity>;
   getRoleByName(name: string): Promise<RoleEntity | null>;
@@ -109,34 +86,28 @@ export class AuthService {
   private readonly SALT_ROUNDS = 12;
   private readonly ACCESS_TOKEN_EXPIRY: string;
   private readonly REFRESH_TOKEN_EXPIRY: string;
-  private userRepository: UserRepository | null = null;
+  private readonly REFRESH_TOKEN_SECRET: string;
 
   constructor(
+    @Inject(USER_REPOSITORY) private readonly userRepository: UserRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly analyticsService?: PostHogService
+    private readonly analyticsService?: PostHogService,
+    @Inject(EMAIL_SERVICE) private readonly emailService?: EmailService
   ) {
     this.ACCESS_TOKEN_EXPIRY =
       this.configService.get<string>("JWT_ACCESS_EXPIRATION") || "15m";
     this.REFRESH_TOKEN_EXPIRY =
       this.configService.get<string>("JWT_REFRESH_EXPIRATION") || "7d";
-  }
-
-  setUserRepository(repository: UserRepository): void {
-    this.userRepository = repository;
-  }
-
-  private getRepository(): UserRepository {
-    if (!this.userRepository) {
-      throw new Error(
-        "UserRepository not set. Call setUserRepository first."
-      );
+    const refreshSecret = this.configService.get<string>("JWT_REFRESH_SECRET");
+    if (!refreshSecret) {
+      throw new Error("JWT_REFRESH_SECRET environment variable is not set");
     }
-    return this.userRepository;
+    this.REFRESH_TOKEN_SECRET = refreshSecret;
   }
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
-    const repo = this.getRepository();
+    const repo = this.userRepository;
 
     // Check if email already exists
     const existingEmail = await repo.findByEmail(dto.email);
@@ -155,6 +126,7 @@ export class AuthService {
 
     // Generate email verification token
     const emailVerificationToken = crypto.randomBytes(32).toString("hex");
+    const emailVerificationTokenHash = this.hashToken(emailVerificationToken);
     const emailVerificationExpires = new Date(
       Date.now() + 24 * 60 * 60 * 1000 // 24 hours
     );
@@ -166,16 +138,24 @@ export class AuthService {
     }
 
     // Create user
-    const user = await repo.create({
-      email: dto.email,
-      username: dto.username,
-      passwordHash,
-      firstName: dto.firstName || null,
-      lastName: dto.lastName || null,
-      emailVerificationToken,
-      emailVerificationExpires,
-      roles: [userRole],
-    });
+    let user: UserEntity;
+    try {
+      user = await repo.create({
+        email: dto.email,
+        username: dto.username,
+        passwordHash,
+        firstName: dto.firstName || null,
+        lastName: dto.lastName || null,
+        emailVerificationToken: emailVerificationTokenHash,
+        emailVerificationExpires,
+        roles: [userRole],
+      });
+    } catch (error) {
+      if (this.isUniqueConstraintError(error)) {
+        throw new ConflictException("Email or username already registered");
+      }
+      throw error;
+    }
 
     // Generate tokens
     const tokens = await this.generateTokens(user);
@@ -184,7 +164,7 @@ export class AuthService {
     const refreshTokenHash = await bcrypt.hash(tokens.refreshToken, this.SALT_ROUNDS);
     await repo.update(user.id, {
       refreshToken: refreshTokenHash,
-      refreshTokenExpires: new Date(Date.now() + this.parseExpiry(this.REFRESH_TOKEN_EXPIRY)),
+      refreshTokenExpires: new Date(Date.now() + parseExpiryToMs(this.REFRESH_TOKEN_EXPIRY)),
     });
 
     // Track analytics
@@ -199,7 +179,7 @@ export class AuthService {
   }
 
   async login(dto: LoginDto): Promise<AuthResponse> {
-    const repo = this.getRepository();
+    const repo = this.userRepository;
 
     const user = await repo.findByEmail(dto.email);
     if (!user) {
@@ -218,7 +198,7 @@ export class AuthService {
     const refreshTokenHash = await bcrypt.hash(tokens.refreshToken, this.SALT_ROUNDS);
     await repo.update(user.id, {
       refreshToken: refreshTokenHash,
-      refreshTokenExpires: new Date(Date.now() + this.parseExpiry(this.REFRESH_TOKEN_EXPIRY)),
+      refreshTokenExpires: new Date(Date.now() + parseExpiryToMs(this.REFRESH_TOKEN_EXPIRY)),
     });
 
     // Track analytics
@@ -232,12 +212,15 @@ export class AuthService {
   }
 
   async refreshTokens(refreshToken: string): Promise<TokenPair> {
-    const repo = this.getRepository();
+    const repo = this.userRepository;
 
     // Verify the refresh token
     let payload: { sub: string };
     try {
-      payload = this.jwtService.verify(refreshToken);
+      payload = this.jwtService.verify(refreshToken, {
+        secret: this.REFRESH_TOKEN_SECRET,
+        audience: "refresh",
+      });
     } catch {
       throw new UnauthorizedException("Invalid refresh token");
     }
@@ -268,7 +251,7 @@ export class AuthService {
     const refreshTokenHash = await bcrypt.hash(tokens.refreshToken, this.SALT_ROUNDS);
     await repo.update(user.id, {
       refreshToken: refreshTokenHash,
-      refreshTokenExpires: new Date(Date.now() + this.parseExpiry(this.REFRESH_TOKEN_EXPIRY)),
+      refreshTokenExpires: new Date(Date.now() + parseExpiryToMs(this.REFRESH_TOKEN_EXPIRY)),
     });
 
     this.logger.debug(`Tokens refreshed for user: ${user.email}`);
@@ -277,7 +260,7 @@ export class AuthService {
   }
 
   async logout(userId: string): Promise<void> {
-    const repo = this.getRepository();
+    const repo = this.userRepository;
 
     await repo.update(userId, {
       refreshToken: null,
@@ -289,7 +272,7 @@ export class AuthService {
   }
 
   async getMe(userId: string): Promise<UserProfile> {
-    const repo = this.getRepository();
+    const repo = this.userRepository;
 
     const user = await repo.findById(userId);
     if (!user) {
@@ -310,7 +293,7 @@ export class AuthService {
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
-    const repo = this.getRepository();
+    const repo = this.userRepository;
 
     const user = await repo.findById(userId);
     if (!user) {
@@ -333,7 +316,7 @@ export class AuthService {
   }
 
   async forgotPassword(dto: ForgotPasswordDto): Promise<void> {
-    const repo = this.getRepository();
+    const repo = this.userRepository;
 
     const user = await repo.findByEmail(dto.email);
     if (!user) {
@@ -343,24 +326,47 @@ export class AuthService {
     }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenHash = this.hashToken(resetToken);
     const resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     await repo.update(user.id, {
-      passwordResetToken: resetToken,
+      passwordResetToken: resetTokenHash,
       passwordResetExpires: resetTokenExpires,
     });
 
-    // TODO: Send email with reset link
-    this.logger.log(`Password reset token generated for: ${user.email}`);
-    this.logger.debug(`Reset token: ${resetToken}`); // Remove in production
+    if (this.emailService) {
+      try {
+        const webAppUrl =
+          this.configService.get<string>("WEB_APP_URL") ||
+          "http://localhost:3000";
+        const resetUrl = `${webAppUrl}/reset-password?token=${resetToken}`;
+        await this.emailService.sendPasswordResetEmail({
+          email: user.email,
+          resetToken,
+          resetUrl,
+          expiresAt: resetTokenExpires,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Failed to send password reset email for ${user.email}: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
+    } else {
+      this.logger.warn(
+        "EmailService not configured; password reset email was not sent."
+      );
+    }
 
     this.trackEvent(user.id, "password_reset_requested", {});
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<void> {
-    const repo = this.getRepository();
+    const repo = this.userRepository;
 
-    const user = await repo.findByPasswordResetToken(dto.token);
+    const tokenHash = this.hashToken(dto.token);
+    const user = await repo.findByPasswordResetToken(tokenHash);
     if (!user) {
       throw new BadRequestException("Invalid or expired reset token");
     }
@@ -381,9 +387,10 @@ export class AuthService {
   }
 
   async verifyEmail(dto: VerifyEmailDto): Promise<void> {
-    const repo = this.getRepository();
+    const repo = this.userRepository;
 
-    const user = await repo.findByEmailVerificationToken(dto.token);
+    const tokenHash = this.hashToken(dto.token);
+    const user = await repo.findByEmailVerificationToken(tokenHash);
     if (!user) {
       throw new BadRequestException("Invalid verification token");
     }
@@ -407,7 +414,9 @@ export class AuthService {
 
   async validateToken(token: string): Promise<JwtPayload | null> {
     try {
-      const payload = this.jwtService.verify<JwtPayload>(token);
+      const payload = this.jwtService.verify<JwtPayload>(token, {
+        audience: "access",
+      });
       return payload;
     } catch {
       return null;
@@ -422,60 +431,52 @@ export class AuthService {
       roles: user.roles.map((r) => r.name),
     };
 
+    const accessTokenExpiresIn = this.ACCESS_TOKEN_EXPIRY as `${number}${"s" | "m" | "h" | "d"}`;
+    const refreshTokenExpiresIn = this.REFRESH_TOKEN_EXPIRY as `${number}${"s" | "m" | "h" | "d"}`;
+    const expiresInMs = parseExpiryToMs(this.ACCESS_TOKEN_EXPIRY);
+    const expiresAt = Date.now() + expiresInMs;
+
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload as Record<string, unknown>, {
-        expiresIn: this.ACCESS_TOKEN_EXPIRY as `${number}${"s" | "m" | "h" | "d"}`,
+        expiresIn: accessTokenExpiresIn,
+        audience: "access",
       }),
       this.jwtService.signAsync(
         { sub: user.id } as Record<string, unknown>,
-        { expiresIn: this.REFRESH_TOKEN_EXPIRY as `${number}${"s" | "m" | "h" | "d"}` }
+        {
+          expiresIn: refreshTokenExpiresIn,
+          secret: this.REFRESH_TOKEN_SECRET,
+          audience: "refresh",
+        }
       ),
     ]);
 
     return {
       accessToken,
       refreshToken,
-      expiresIn: this.parseExpiry(this.ACCESS_TOKEN_EXPIRY),
+      expiresIn: expiresInMs,
+      expiresAt,
     };
   }
 
   private buildAuthResponse(user: UserEntity, tokens: TokenPair): AuthResponse {
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        imageUrl: user.imageUrl,
-        isEmailVerified: user.isEmailVerified,
-        roles: user.roles.map((r) => r.name),
-      },
+      user: this.buildAuthUser(user),
       tokens,
     };
   }
 
-  private parseExpiry(expiry: string): number {
-    const match = expiry.match(/^(\d+)([smhd])$/);
-    if (!match) {
-      return 15 * 60 * 1000; // default 15 minutes
-    }
-
-    const value = parseInt(match[1], 10);
-    const unit = match[2];
-
-    switch (unit) {
-      case "s":
-        return value * 1000;
-      case "m":
-        return value * 60 * 1000;
-      case "h":
-        return value * 60 * 60 * 1000;
-      case "d":
-        return value * 24 * 60 * 60 * 1000;
-      default:
-        return 15 * 60 * 1000;
-    }
+  private buildAuthUser(user: UserEntity): AuthUser {
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      imageUrl: user.imageUrl,
+      isEmailVerified: user.isEmailVerified,
+      roles: user.roles.map((r) => r.name),
+    };
   }
 
   private trackEvent(
@@ -493,5 +494,15 @@ export class AuthService {
           this.logger.error(`Failed to track ${event}: ${err.message}`);
         });
     }
+  }
+
+  private hashToken(token: string): string {
+    return crypto.createHash("sha256").update(token).digest("hex");
+  }
+
+  private isUniqueConstraintError(error: unknown): boolean {
+    if (!error || typeof error !== "object") return false;
+    const err = error as { code?: string };
+    return err.code === "23505";
   }
 }

@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useAuth } from "../providers/AuthProvider";
 import { useQueryClient } from "@tanstack/react-query";
+import { getApiUrl } from "../utils/api";
 
 export function Auth() {
   const { isAuthenticated, user, login, register, logout, isLoading } = useAuth();
@@ -83,9 +84,7 @@ export function Auth() {
     setSubmitting(true);
 
     try {
-      // Get API URL from env
-      const apiUrl = "http://localhost:3001"; // You should get this from env
-      const response = await fetch(`${apiUrl}/auth/forgot-password`, {
+      const response = await fetch(`${getApiUrl()}/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

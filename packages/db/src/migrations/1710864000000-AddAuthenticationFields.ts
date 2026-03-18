@@ -54,6 +54,17 @@ export class AddAuthenticationFields1710864000000 implements MigrationInterface 
         await queryRunner.query(`ALTER TABLE "users" ADD "refreshToken" character varying(500)`);
         await queryRunner.query(`ALTER TABLE "users" ADD "refreshTokenExpires" TIMESTAMP`);
 
+        // Add indexes for token lookup
+        await queryRunner.query(
+            `CREATE INDEX "IDX_users_email_verification_token" ON "users" ("emailVerificationToken")`
+        );
+        await queryRunner.query(
+            `CREATE INDEX "IDX_users_password_reset_token" ON "users" ("passwordResetToken")`
+        );
+        await queryRunner.query(
+            `CREATE INDEX "IDX_users_refresh_token" ON "users" ("refreshToken")`
+        );
+
         // Remove default from passwordHash (it was only for migration)
         await queryRunner.query(`ALTER TABLE "users" ALTER COLUMN "passwordHash" DROP DEFAULT`);
 
@@ -66,6 +77,11 @@ export class AddAuthenticationFields1710864000000 implements MigrationInterface 
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
+        // Drop token indexes
+        await queryRunner.query(`DROP INDEX IF EXISTS "IDX_users_refresh_token"`);
+        await queryRunner.query(`DROP INDEX IF EXISTS "IDX_users_password_reset_token"`);
+        await queryRunner.query(`DROP INDEX IF EXISTS "IDX_users_email_verification_token"`);
+
         // Remove new columns from users
         await queryRunner.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "refreshTokenExpires"`);
         await queryRunner.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "refreshToken"`);

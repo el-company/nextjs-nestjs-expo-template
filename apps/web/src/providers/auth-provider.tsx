@@ -6,34 +6,15 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
   type ReactNode,
   type JSX,
 } from "react";
-
-interface User {
-  id: string;
-  email: string;
-  username: string;
-  firstName: string | null;
-  lastName: string | null;
-  imageUrl: string | null;
-  isEmailVerified: boolean;
-  roles: string[];
-}
-
-interface TokenPair {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
-
-interface AuthResponse {
-  user: User;
-  tokens: TokenPair;
-}
+import { useRouter, usePathname } from "next/navigation";
+import type { AuthResponse, TokenPair, AuthUser, RegisterData } from "@repo/services";
 
 interface AuthContextValue {
-  user: User | null;
+  user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<AuthResponse>;
@@ -43,19 +24,22 @@ interface AuthContextValue {
   refreshTokens: () => Promise<TokenPair | null>;
 }
 
-interface RegisterData {
-  username: string;
-  email: string;
-  password: string;
-  firstName?: string;
-  lastName?: string;
-}
-
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const ACCESS_TOKEN_KEY = "access_token";
-const REFRESH_TOKEN_KEY = "refresh_token";
-const TOKEN_EXPIRY_KEY = "token_expiry";
+const publicRoutes = [
+  "/",
+  "/sign-in",
+  "/sign-up",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+];
+
+function isPublicRoute(pathname: string): boolean {
+  return publicRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+}
 
 function getApiUrl(): string {
   return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -66,76 +50,92 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
-  const [user, setUser] = useState<User | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const getStoredTokens = useCallback(() => {
-    if (typeof window === "undefined") return null;
-    const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
-    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-    const expiryStr = localStorage.getItem(TOKEN_EXPIRY_KEY);
-    const expiry = expiryStr ? parseInt(expiryStr, 10) : 0;
-    return { accessToken, refreshToken, expiry };
-  }, []);
+  const accessTokenRef = useRef<string | null>(null);
+  const accessTokenExpiresAtRef = useRef<number>(0);
+  const refreshPromiseRef = useRef<Promise<TokenPair | null> | null>(null);
 
-  const storeTokens = useCallback((tokens: TokenPair) => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
-    localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
-    localStorage.setItem(
-      TOKEN_EXPIRY_KEY,
-      String(Date.now() + tokens.expiresIn)
-    );
+  const setTokens = useCallback((tokens: TokenPair) => {
+    accessTokenRef.current = tokens.accessToken;
+    accessTokenExpiresAtRef.current =
+      tokens.expiresAt || Date.now() + tokens.expiresIn;
   }, []);
 
   const clearTokens = useCallback(() => {
-    if (typeof window === "undefined") return;
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    localStorage.removeItem(TOKEN_EXPIRY_KEY);
+    accessTokenRef.current = null;
+    accessTokenExpiresAtRef.current = 0;
   }, []);
 
-  const refreshTokens = useCallback(async (): Promise<TokenPair | null> => {
-    const stored = getStoredTokens();
-    if (!stored?.refreshToken) return null;
-
-    try {
-      const response = await fetch(`${getApiUrl()}/auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken: stored.refreshToken }),
-      });
-
-      if (!response.ok) {
-        clearTokens();
-        setUser(null);
-        return null;
-      }
-
-      const tokens: TokenPair = await response.json();
-      storeTokens(tokens);
-      return tokens;
-    } catch {
+  const handleAuthFailure = useCallback(
+    (redirect = true) => {
       clearTokens();
       setUser(null);
-      return null;
+
+      if (!redirect || typeof window === "undefined") return;
+      const currentPath = pathname || "/";
+      if (isPublicRoute(currentPath)) return;
+
+      const signInUrl = `/sign-in?redirect=${encodeURIComponent(currentPath)}`;
+      router.replace(signInUrl);
+    },
+    [clearTokens, pathname, router]
+  );
+
+  const refreshTokens = useCallback(async (): Promise<TokenPair | null> => {
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
     }
-  }, [getStoredTokens, storeTokens, clearTokens]);
+
+    refreshPromiseRef.current = (async () => {
+      try {
+        const response = await fetch(`${getApiUrl()}/auth/refresh`, {
+          method: "POST",
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          handleAuthFailure();
+          return null;
+        }
+
+        const tokens: TokenPair = await response.json();
+        setTokens(tokens);
+        return tokens;
+      } catch {
+        handleAuthFailure();
+        return null;
+      } finally {
+        refreshPromiseRef.current = null;
+      }
+    })();
+
+    return refreshPromiseRef.current;
+  }, [handleAuthFailure, setTokens]);
 
   const getToken = useCallback(async (): Promise<string | null> => {
-    const stored = getStoredTokens();
-    if (!stored?.accessToken) return null;
-
-    // Check if token is about to expire (within 1 minute)
-    if (stored.expiry && stored.expiry - Date.now() < 60 * 1000) {
+    const token = accessTokenRef.current;
+    if (!token) {
       const newTokens = await refreshTokens();
       return newTokens?.accessToken || null;
     }
 
-    return stored.accessToken;
-  }, [getStoredTokens, refreshTokens]);
+    if (
+      accessTokenExpiresAtRef.current &&
+      accessTokenExpiresAtRef.current - Date.now() < 60 * 1000
+    ) {
+      const newTokens = await refreshTokens();
+      return newTokens?.accessToken || null;
+    }
 
-  const fetchUser = useCallback(async (): Promise<User | null> => {
+    return token;
+  }, [refreshTokens]);
+
+  const fetchUser = useCallback(async (): Promise<AuthUser | null> => {
     const token = await getToken();
     if (!token) return null;
 
@@ -146,7 +146,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
       if (!response.ok) {
         if (response.status === 401) {
-          clearTokens();
+          handleAuthFailure();
         }
         return null;
       }
@@ -155,13 +155,14 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     } catch {
       return null;
     }
-  }, [getToken, clearTokens]);
+  }, [getToken, handleAuthFailure]);
 
   const login = useCallback(
     async (email: string, password: string): Promise<AuthResponse> => {
       const response = await fetch(`${getApiUrl()}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
@@ -171,11 +172,11 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       }
 
       const data: AuthResponse = await response.json();
-      storeTokens(data.tokens);
+      setTokens(data.tokens);
       setUser(data.user);
       return data;
     },
-    [storeTokens]
+    [setTokens]
   );
 
   const register = useCallback(
@@ -183,6 +184,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       const response = await fetch(`${getApiUrl()}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(data),
       });
 
@@ -192,11 +194,11 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       }
 
       const result: AuthResponse = await response.json();
-      storeTokens(result.tokens);
+      setTokens(result.tokens);
       setUser(result.user);
       return result;
     },
-    [storeTokens]
+    [setTokens]
   );
 
   const logout = useCallback(async (): Promise<void> => {
@@ -206,6 +208,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
         await fetch(`${getApiUrl()}/auth/logout`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
         });
       } catch {
         // Ignore logout errors
@@ -215,17 +218,24 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     setUser(null);
   }, [getToken, clearTokens]);
 
-  // Initialize auth state on mount
   useEffect(() => {
+    let isMounted = true;
+
     const initAuth = async () => {
       setIsLoading(true);
+      await refreshTokens();
       const fetchedUser = await fetchUser();
-      setUser(fetchedUser);
-      setIsLoading(false);
+      if (isMounted) {
+        setUser(fetchedUser);
+        setIsLoading(false);
+      }
     };
 
-    initAuth();
-  }, [fetchUser]);
+    void initAuth();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const value: AuthContextValue = {
     user,
