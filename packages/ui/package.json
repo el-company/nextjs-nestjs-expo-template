@@ -93,6 +93,7 @@
     "./hooks/*": [
       "./src/hooks/*.ts",
       "./src/hooks/*.tsx"
-    ]
+    ],
+    "./tokens": "./src/tokens/index.ts"
   }
 }

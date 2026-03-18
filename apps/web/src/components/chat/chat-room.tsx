@@ -218,7 +218,7 @@ export function ChatRoom({
             </div>
           ) : null}
           <div className="mt-2 flex justify-end">
-            <Button variant="ghost" color="danger" onClick={handleLeaveRoom}>
+            <Button variant="destructive" onClick={handleLeaveRoom}>
               Leave Room
             </Button>
           </div>

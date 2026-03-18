@@ -1,4 +1,4 @@
-import "./tamagui-web.css";
+import "./global.css";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, ReactNode, ErrorInfo, useState } from "react";
 import {
@@ -18,10 +18,7 @@ import { CustomClerkProvider } from "./providers/ClerkProvider";
 import { PostHogProvider } from "./providers/PostHogProvider";
 import { ReduxProvider } from "./providers/ReduxProvider";
 import { ClerkAuth } from "./components/ClerkAuth";
-import { TamaguiProvider } from "tamagui";
-import config from "./tamagui.config";
-import { TamaguiDemo } from "./components/TamaguiDemo";
-import { useFonts } from "expo-font";
+import { GlueStackDemo } from "./components/GlueStackDemo";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -65,71 +62,71 @@ class ErrorBoundary extends React.Component<
 
 export default function App() {
   const colorScheme = useColorScheme();
-  const [appReady, setAppReady] = useState(false);
   const [activeView, setActiveView] = useState<"main" | "chat">("main");
 
-  const [fontsLoaded, fontError] = useFonts({
-    Inter: require("@tamagui/font-inter/otf/Inter-Medium.otf"),
-    InterBold: require("@tamagui/font-inter/otf/Inter-Bold.otf"),
-  });
-
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      setAppReady(true);
-    }
-
     console.log("[App] Mounted - React version:", React.version);
     console.log("[App] Platform:", Platform.OS, Platform.Version);
-    console.log("[App] Fonts loaded:", fontsLoaded);
-    if (fontError) {
-      console.warn("[App] Font loading error:", fontError);
-    }
-  }, [fontsLoaded, fontError]);
+    console.log("[App] Color scheme:", colorScheme);
+  }, [colorScheme]);
+
+  const isDark = colorScheme === "dark";
 
   const renderMainContent = () => (
     <ScrollView contentContainerStyle={styles.scrollView}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Mobile App</Text>
-        <Text style={styles.subtitle}>Welcome to the demo app</Text>
+      <View style={[styles.container, isDark && styles.containerDark]}>
+        <Text style={[styles.title, isDark && styles.textDark]}>
+          Mobile App
+        </Text>
+        <Text style={[styles.subtitle, isDark && styles.subtitleDark]}>
+          Welcome to the demo app
+        </Text>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Authentication:</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.textDark]}>
+            Authentication:
+          </Text>
           <ClerkAuth />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>tRPC Demo:</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.textDark]}>
+            tRPC Demo:
+          </Text>
           <HelloExample />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Chat Demo:</Text>
-          <View style={styles.chatPreview}>
-            <Text>Open the chat interface to start messaging</Text>
-            <Button
-              onPress={() => setActiveView("chat")}
-              style={styles.chatButton}
-            >
+          <Text style={[styles.sectionTitle, isDark && styles.textDark]}>
+            Chat Demo:
+          </Text>
+          <View style={[styles.chatPreview, isDark && styles.chatPreviewDark]}>
+            <Text style={isDark && styles.textDark}>
+              Open the chat interface to start messaging
+            </Text>
+            <AppButton onPress={() => setActiveView("chat")}>
               Open Chat
-            </Button>
+            </AppButton>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tamagui Demo:</Text>
-          <TamaguiDemo />
+          <Text style={[styles.sectionTitle, isDark && styles.textDark]}>
+            GlueStack UI Demo:
+          </Text>
+          <GlueStackDemo />
         </View>
       </View>
     </ScrollView>
   );
 
   const renderChatContent = () => (
-    <View style={styles.chatContainer}>
-      <View style={styles.chatHeader}>
-        <Button onPress={() => setActiveView("main")} style={styles.backButton}>
+    <View style={[styles.chatContainer, isDark && styles.containerDark]}>
+      <View style={[styles.chatHeader, isDark && styles.chatHeaderDark]}>
+        <AppButton onPress={() => setActiveView("main")} secondary>
           Back to Main
-        </Button>
-        <Text style={styles.chatTitle}>Chat</Text>
+        </AppButton>
+        <Text style={[styles.chatTitle, isDark && styles.textDark]}>Chat</Text>
       </View>
       <ChatDemo />
     </View>
@@ -137,50 +134,55 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <TamaguiProvider config={config} defaultTheme="light">
-        <ReduxProvider>
-          <CustomClerkProvider>
-            <PostHogProvider>
-              <TRPCProvider>
-                <SafeAreaWrapper style={styles.safeArea} key="main-safe-area">
-                  <StatusBar style="auto" />
-                  {!appReady ? (
-                    <View style={styles.container}>
-                      <Text style={styles.loadingText}>Loading app...</Text>
-                    </View>
-                  ) : activeView === "main" ? (
-                    renderMainContent()
-                  ) : (
-                    renderChatContent()
-                  )}
-                </SafeAreaWrapper>
-              </TRPCProvider>
-            </PostHogProvider>
-          </CustomClerkProvider>
-        </ReduxProvider>
-      </TamaguiProvider>
+      <ReduxProvider>
+        <CustomClerkProvider>
+          <PostHogProvider>
+            <TRPCProvider>
+              <SafeAreaWrapper
+                style={[styles.safeArea, isDark && styles.containerDark]}
+                key="main-safe-area"
+              >
+                <StatusBar style={isDark ? "light" : "dark"} />
+                {activeView === "main"
+                  ? renderMainContent()
+                  : renderChatContent()}
+              </SafeAreaWrapper>
+            </TRPCProvider>
+          </PostHogProvider>
+        </CustomClerkProvider>
+      </ReduxProvider>
     </ErrorBoundary>
   );
 }
 
-const Button = ({ onPress, children, style }: any) => (
-  <TouchableOpacity
-    onPress={onPress}
-    style={[
-      {
-        backgroundColor: "#2196F3",
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 4,
-        alignItems: "center",
-        marginTop: 10,
-      },
-      style,
-    ]}
-  >
-    <Text style={{ color: "white", fontWeight: "bold" }}>{children}</Text>
-  </TouchableOpacity>
-);
+function AppButton({
+  onPress,
+  children,
+  secondary,
+}: {
+  onPress: () => void;
+  children: React.ReactNode;
+  secondary?: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[
+        styles.button,
+        secondary ? styles.buttonSecondary : styles.buttonPrimary,
+      ]}
+    >
+      <Text
+        style={[
+          styles.buttonText,
+          secondary ? styles.buttonTextSecondary : styles.buttonTextPrimary,
+        ]}
+      >
+        {children}
+      </Text>
+    </TouchableOpacity>
+  );
+}
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -197,26 +199,37 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 60,
   },
+  containerDark: {
+    backgroundColor: "#09090b",
+  },
   title: {
     fontSize: 28,
     fontWeight: "bold",
     marginBottom: 10,
-    color: "#333",
+    color: "#09090b",
+  },
+  textDark: {
+    color: "#fafafa",
   },
   subtitle: {
     fontSize: 18,
     marginBottom: 30,
-    color: "#666",
+    color: "#71717a",
+  },
+  subtitleDark: {
+    color: "#a1a1aa",
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontWeight: "600",
     marginBottom: 10,
     alignSelf: "flex-start",
+    color: "#09090b",
   },
-  profileContainer: {
+  section: {
     width: "100%",
     marginBottom: 20,
+    marginTop: 20,
   },
   errorContainer: {
     flex: 1,
@@ -228,23 +241,13 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "red",
+    color: "#ef4444",
     marginBottom: 10,
   },
   errorMessage: {
     fontSize: 16,
-    color: "#333",
+    color: "#09090b",
     textAlign: "center",
-  },
-  section: {
-    width: "100%",
-    marginBottom: 20,
-    marginTop: 20,
-  },
-  loadingText: {
-    fontSize: 18,
-    color: "#666",
-    marginBottom: 10,
   },
   chatContainer: {
     flex: 1,
@@ -255,25 +258,51 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: "#e4e4e7",
+    gap: 12,
   },
-  backButton: {
-    marginRight: 10,
-    backgroundColor: "#666",
+  chatHeaderDark: {
+    borderBottomColor: "#27272a",
   },
   chatTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
+    fontWeight: "600",
+    color: "#09090b",
   },
   chatPreview: {
     width: "100%",
-    padding: 15,
-    backgroundColor: "#f5f5f5",
+    padding: 16,
+    backgroundColor: "#f4f4f5",
     borderRadius: 8,
     alignItems: "center",
+    gap: 12,
   },
-  chatButton: {
-    width: 200,
+  chatPreviewDark: {
+    backgroundColor: "#27272a",
+  },
+  button: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 6,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  buttonPrimary: {
+    backgroundColor: "#09090b",
+  },
+  buttonSecondary: {
+    backgroundColor: "#f4f4f5",
+    borderWidth: 1,
+    borderColor: "#e4e4e7",
+  },
+  buttonText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  buttonTextPrimary: {
+    color: "#fafafa",
+  },
+  buttonTextSecondary: {
+    color: "#09090b",
   },
 });

@@ -1,6 +1,11 @@
 import { getDefaultConfig } from "expo/metro-config.js";
+import { createRequire } from "module";
 import path from "path";
 import { fileURLToPath } from "url";
+
+// nativewind/metro is a CJS directory package — use createRequire for ESM compatibility
+const require = createRequire(import.meta.url);
+const { withNativeWind } = require("nativewind/metro");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,4 +27,4 @@ config.resolver.nodeModulesPaths = [
 // pnpm uses symlinks — enable symlinks support
 config.resolver.unstable_enableSymlinks = true;
 
-export default config;
+export default withNativeWind(config, { input: "./global.css" });

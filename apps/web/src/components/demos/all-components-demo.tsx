@@ -211,7 +211,7 @@ export function AllComponentsDemo(): React.JSX.Element {
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
               <Button>Default</Button>
-              <Button variant="flat">Flat</Button>
+              <Button variant="secondary">Secondary</Button>
               <Button variant="destructive">Destructive</Button>
               <Button variant="outline">Outline</Button>
               <Button variant="ghost">Ghost</Button>
@@ -996,7 +996,7 @@ export function AllComponentsDemo(): React.JSX.Element {
                 </Button>
 
                 <Button
-                  color="success"
+                  variant="secondary"
                   onClick={() => {
                     toast.success("Successfully completed!");
                   }}
@@ -1005,7 +1005,7 @@ export function AllComponentsDemo(): React.JSX.Element {
                 </Button>
 
                 <Button
-                  color="error"
+                  variant="destructive"
                   onClick={() => {
                     toast.error("An error occurred");
                   }}
@@ -1014,7 +1014,7 @@ export function AllComponentsDemo(): React.JSX.Element {
                 </Button>
 
                 <Button
-                  color="info"
+                  variant="outline"
                   onClick={() => {
                     toast.info("Here is some information");
                   }}
@@ -1023,7 +1023,7 @@ export function AllComponentsDemo(): React.JSX.Element {
                 </Button>
 
                 <Button
-                  color="warning"
+                  variant="ghost"
                   onClick={() => {
                     toast.warning("Heads up, something needs attention");
                   }}
@@ -1032,7 +1032,7 @@ export function AllComponentsDemo(): React.JSX.Element {
                 </Button>
 
                 <Button
-                  color="secondary"
+                  variant="secondary"
                   onClick={() => {
                     toast("Toast with action", {
                       action: {
@@ -1048,7 +1048,7 @@ export function AllComponentsDemo(): React.JSX.Element {
                 </Button>
 
                 <Button
-                  color="accent"
+                  variant="outline"
                   onClick={() => {
                     toast.promise(
                       new Promise<void>((resolve) => {
@@ -1069,12 +1069,8 @@ export function AllComponentsDemo(): React.JSX.Element {
 
                 <Button
                   variant="outline"
-                  color="primary"
                   onClick={() => {
-                    toast("Custom styling", {
-                      className:
-                        "bg-primary-50 text-primary-900 border-primary-200",
-                    });
+                    toast("Custom styling");
                   }}
                 >
                   Custom Styled
