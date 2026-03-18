@@ -1,6 +1,5 @@
 declare module "@repo/analytics" {
   import { Module } from "@nestjs/common";
-  import { WebhookEvent } from "@clerk/express";
 
   export class PostHogService {
     capture(
@@ -25,9 +24,5 @@ declare module "@repo/analytics" {
 
   export class PostHogModule extends Module {}
 
-  export class WebhooksService {
-    handleClerkWebhook(event: WebhookEvent): Promise<boolean>;
-  }
-
-  export class WebhooksModule extends Module {}
+  export class WebhooksService {}
 }

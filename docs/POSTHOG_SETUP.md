@@ -41,7 +41,7 @@ NEXT_PUBLIC_POSTHOG_HOST=https://app.posthog.com  # or https://eu.posthog.com fo
 
 2. The web app is already configured to:
    - Track page views automatically
-   - Identify users when they log in via Clerk
+   - Identify users when they log in via your authentication system
    - Capture button clicks and form submissions
 
 3. In the PostHog dashboard:
@@ -71,7 +71,7 @@ EXPO_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com  # or https://app.posthog.com 
 
 2. The mobile app is already configured to:
    - Track screen views automatically
-   - Identify users when they log in via Clerk
+   - Identify users when they log in via your authentication system
    - Capture app lifecycle events (open, close, background)
 
 3. In the PostHog dashboard:
@@ -284,7 +284,7 @@ function MyComponent() {
    - Check that `__DEV__` is not interfering with capturing (mobile)
 
 2. **User identification not working**:
-   - Verify that Clerk authentication is properly integrated
+   - Verify that authentication is properly integrated
    - Check user ID is being passed correctly
 
 3. **PostHog initialization failing**:

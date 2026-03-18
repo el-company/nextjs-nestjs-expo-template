@@ -38,7 +38,6 @@
     "fullclean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
   },
   "dependencies": {
-    "@clerk/express": "^2.0.1",
     "@nestjs/common": "^11.1.16",
     "@nestjs/config": "^4.0.3",
     "@nestjs/typeorm": "^11.0.0",

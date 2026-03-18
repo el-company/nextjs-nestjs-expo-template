@@ -4,7 +4,7 @@ This package provides shared services that can be used across the backend and fr
 
 ## Features
 
-- Clerk authentication integration
+- Authentication integration
 - Redis cache and pub/sub services
 - Webhook handlers for external services
 - NestJS modules for easy integration
@@ -26,7 +26,7 @@ The package is included in the monorepo. It can be imported into any other packa
 
 ### Authentication (AuthModule)
 
-Provides Clerk integration for authentication services.
+Provides authentication services.
 
 #### Usage
 
@@ -132,10 +132,10 @@ import { WebhookService, ValidateWebhook } from '@repo/services/webhooks';
 export class WebhookController {
   constructor(private readonly webhookService: WebhookService) {}
 
-  @Post('clerk')
-  @ValidateWebhook('clerk')
-  handleClerkWebhook(@Body() payload: any) {
-    return this.webhookService.processClerkWebhook(payload);
+  @Post('provider')
+  @ValidateWebhook('provider')
+  handleWebhook(@Body() payload: any) {
+    return this.webhookService.processWebhook(payload);
   }
 }
 ```
@@ -145,10 +145,6 @@ export class WebhookController {
 Set the following environment variables to configure the services:
 
 ```env
-# Clerk Authentication
-CLERK_SECRET_KEY=your_clerk_secret_key
-CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-
 # Redis Configuration
 REDIS_HOST=localhost
 REDIS_PORT=6379
@@ -156,7 +152,7 @@ REDIS_PASSWORD=optional_password
 REDIS_DB=0
 
 # Webhook Configuration
-WEBHOOK_SECRET_CLERK=your_clerk_webhook_secret
+WEBHOOK_SECRET_PROVIDER=your_webhook_secret
 ```
 
 ## Using Multiple Services
