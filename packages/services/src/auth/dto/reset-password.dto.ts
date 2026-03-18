@@ -1,15 +1,27 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, MinLength, Matches } from "class-validator";
+import { IsString, IsEmail, Length, Matches, MinLength } from "class-validator";
 import { Transform } from "class-transformer";
 
 export class ResetPasswordDto {
   @ApiProperty({
-    example: "abc123token",
-    description: "Password reset token received via email",
+    example: "user@example.com",
+    description: "Email address associated with the account",
+  })
+  @IsEmail({}, { message: "Please provide a valid email address" })
+  @Transform(({ value }) =>
+    typeof value === "string" ? value.toLowerCase().trim() : value
+  )
+  email: string;
+
+  @ApiProperty({
+    example: "123456",
+    description: "6-digit password reset code sent to your email",
   })
   @IsString()
+  @Length(6, 6, { message: "Code must be exactly 6 digits" })
+  @Matches(/^\d{6}$/, { message: "Code must contain only digits" })
   @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
-  token: string;
+  code: string;
 
   @ApiProperty({
     example: "NewSecurePass123!",

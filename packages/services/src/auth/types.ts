@@ -50,12 +50,30 @@ export type UserProfile = AuthUser & {
 };
 
 export interface EmailService {
-  sendPasswordResetEmail(input: {
+  sendVerificationCode(input: {
     email: string;
-    resetToken: string;
-    resetUrl: string;
+    code: string;
+    name?: string | null;
     expiresAt: Date;
   }): Promise<void>;
+  sendPasswordResetCode(input: {
+    email: string;
+    code: string;
+    name?: string | null;
+    expiresAt: Date;
+  }): Promise<void>;
+}
+
+export interface IVerificationCodeService {
+  generateCode(
+    userId: string,
+    purpose: "email_verification" | "password_reset"
+  ): Promise<{ code: string; expiresAt: Date }>;
+  verifyCode(
+    userId: string,
+    purpose: "email_verification" | "password_reset",
+    code: string
+  ): Promise<void>;
 }
 
 // Re-export as const to help esbuild

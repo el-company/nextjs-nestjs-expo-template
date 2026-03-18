@@ -60,8 +60,8 @@ export class UserRepository implements IUserRepository {
       passwordHash: data.passwordHash,
       firstName: data.firstName || null,
       lastName: data.lastName || null,
-      emailVerificationToken: data.emailVerificationToken,
-      emailVerificationExpires: data.emailVerificationExpires,
+      emailVerificationToken: data.emailVerificationToken ?? null,
+      emailVerificationExpires: data.emailVerificationExpires ?? null,
       roles: data.roles as Role[],
     });
 

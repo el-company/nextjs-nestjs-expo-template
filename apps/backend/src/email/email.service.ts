@@ -1,63 +1,103 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import nodemailer, { Transporter } from "nodemailer";
 import type { EmailService } from "@repo/services";
+import {
+  renderEmailVerificationTemplate,
+  emailVerificationPlainText,
+} from "./templates/email-verification.template.js";
+import {
+  renderPasswordResetTemplate,
+  passwordResetPlainText,
+} from "./templates/password-reset.template.js";
+import { EMAIL_PROVIDER } from "./providers/email-provider.interface.js";
+import type { IEmailProvider } from "./providers/email-provider.interface.js";
+
+const CODE_EXPIRY_MINUTES = 10;
 
 @Injectable()
-export class SmtpEmailService implements EmailService {
-  private readonly logger = new Logger(SmtpEmailService.name);
-  private readonly transporter: Transporter | null;
-  private readonly fromAddress: string | null;
+export class AppEmailService implements EmailService {
+  private readonly logger = new Logger(AppEmailService.name);
+  private readonly fromAddress: string;
 
-  constructor(private readonly configService: ConfigService) {
-    const host = this.configService.get<string>("SMTP_HOST");
-    const port = this.configService.get<number>("SMTP_PORT", 587);
-    const user = this.configService.get<string>("SMTP_USER");
-    const password = this.configService.get<string>("SMTP_PASSWORD");
-    const secure = this.configService.get<boolean>("SMTP_SECURE", false);
-    const from = this.configService.get<string>("SMTP_FROM");
-
-    this.fromAddress = from || null;
-
-    if (!host || !from) {
-      this.logger.warn(
-        "SMTP is not fully configured. Password reset emails will be logged instead of sent."
-      );
-      this.transporter = null;
-      return;
-    }
-
-    this.transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: user ? { user, pass: password || "" } : undefined,
-    });
+  constructor(
+    @Inject(EMAIL_PROVIDER) private readonly provider: IEmailProvider,
+    private readonly configService: ConfigService
+  ) {
+    this.fromAddress =
+      this.configService.get<string>("RESEND_FROM") ||
+      this.configService.get<string>("SMTP_FROM") ||
+      "noreply@yourapp.com";
   }
 
-  async sendPasswordResetEmail(input: {
+  async sendVerificationCode(input: {
     email: string;
-    resetToken: string;
-    resetUrl: string;
+    code: string;
+    name?: string | null;
     expiresAt: Date;
   }): Promise<void> {
-    if (!this.transporter || !this.fromAddress) {
-      this.logger.warn(
-        `Password reset email for ${input.email} not sent. Reset URL: ${input.resetUrl}`
-      );
-      return;
-    }
+    const expiresInMinutes = Math.round(
+      (input.expiresAt.getTime() - Date.now()) / 60_000
+    ) || CODE_EXPIRY_MINUTES;
 
-    await this.transporter.sendMail({
-      to: input.email,
-      from: this.fromAddress,
-      subject: "Reset your password",
-      text: `You requested a password reset. Use the link below to set a new password. This link expires at ${input.expiresAt.toISOString()}.\n\n${input.resetUrl}`,
-      html: `
-        <p>You requested a password reset.</p>
-        <p>This link expires at ${input.expiresAt.toISOString()}.</p>
-        <p><a href="${input.resetUrl}">Reset your password</a></p>
-      `,
-    });
+    try {
+      await this.provider.send({
+        to: input.email,
+        from: this.fromAddress,
+        subject: "Verify your email address",
+        html: renderEmailVerificationTemplate({
+          code: input.code,
+          name: input.name,
+          expiresInMinutes,
+        }),
+        text: emailVerificationPlainText({
+          code: input.code,
+          name: input.name,
+          expiresInMinutes,
+        }),
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to send verification email to ${input.email}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      throw error;
+    }
+  }
+
+  async sendPasswordResetCode(input: {
+    email: string;
+    code: string;
+    name?: string | null;
+    expiresAt: Date;
+  }): Promise<void> {
+    const expiresInMinutes = Math.round(
+      (input.expiresAt.getTime() - Date.now()) / 60_000
+    ) || CODE_EXPIRY_MINUTES;
+
+    try {
+      await this.provider.send({
+        to: input.email,
+        from: this.fromAddress,
+        subject: "Reset your password",
+        html: renderPasswordResetTemplate({
+          code: input.code,
+          name: input.name,
+          expiresInMinutes,
+        }),
+        text: passwordResetPlainText({
+          code: input.code,
+          name: input.name,
+          expiresInMinutes,
+        }),
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to send password reset email to ${input.email}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      throw error;
+    }
   }
 }

@@ -2,9 +2,13 @@
 
 import { useState, type JSX } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@repo/ui/components/base/button";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
 export default function ForgotPasswordPage(): JSX.Element {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -16,18 +20,15 @@ export default function ForgotPasswordPage(): JSX.Element {
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/auth/forgot-password`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-        }
-      );
+      const response = await fetch(`${API_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Failed to send reset email");
+        const data = await response.json() as { message?: string };
+        throw new Error(data.message || "Failed to send reset code");
       }
 
       setSuccess(true);
@@ -41,32 +42,27 @@ export default function ForgotPasswordPage(): JSX.Element {
   if (success) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="w-full max-w-md space-y-8 text-center">
+        <div className="w-full max-w-md space-y-6 text-center">
           <div className="p-4 bg-primary/10 rounded-full w-16 h-16 mx-auto flex items-center justify-center">
-            <svg
-              className="w-8 h-8 text-primary"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-              />
+            <svg className="w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>
           <h1 className="text-2xl font-bold">Check your email</h1>
           <p className="text-muted-foreground">
-            If an account exists with <strong>{email}</strong>, you will receive
-            a password reset link shortly.
+            If an account exists for <strong>{email}</strong>, we sent a 6-digit reset code. The code expires in 10 minutes.
           </p>
-          <Link href="/sign-in">
-            <Button variant="outline" className="mt-4">
+          <Button
+            className="mt-2"
+            onClick={() => router.push(`/reset-password?email=${encodeURIComponent(email)}`)}
+          >
+            Enter reset code
+          </Button>
+          <p className="text-sm">
+            <Link href="/sign-in" className="text-primary hover:underline">
               Back to Sign In
-            </Button>
-          </Link>
+            </Link>
+          </p>
         </div>
       </div>
     );
@@ -78,7 +74,7 @@ export default function ForgotPasswordPage(): JSX.Element {
         <div className="text-center">
           <h1 className="text-2xl font-bold">Forgot Password</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Enter your email and we&apos;ll send you a reset link
+            Enter your email and we&apos;ll send you a 6-digit reset code
           </p>
         </div>
 
@@ -105,7 +101,7 @@ export default function ForgotPasswordPage(): JSX.Element {
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Sending..." : "Send Reset Link"}
+            {isLoading ? "Sending..." : "Send Reset Code"}
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
