@@ -11,6 +11,7 @@ import { PostHogModule } from "@repo/analytics";
 import { WebsocketsModule } from "@repo/websockets/server";
 import { HealthModule } from "./health/health.module.js";
 import { EmailModule } from "./email/email.module.js";
+import { VerificationCodeModule } from "./verification-code/verification-code.module.js";
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { EmailModule } from "./email/email.module.js";
     PostHogModule,
     AppConfigModule,
     EmailModule,
+    VerificationCodeModule,
     AuthModule,
     UsersModule,
     WebsocketsModule,

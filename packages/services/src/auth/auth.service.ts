@@ -10,7 +10,6 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import * as bcrypt from "bcrypt";
-import * as crypto from "crypto";
 import { PostHogService } from "@repo/analytics";
 import type {
   JwtPayload,
@@ -19,6 +18,7 @@ import type {
   UserProfile,
   EmailService,
   AuthUser,
+  IVerificationCodeService,
 } from "./types.js";
 import {
   RegisterDto,
@@ -28,7 +28,7 @@ import {
   ResetPasswordDto,
   VerifyEmailDto,
 } from "./dto/index.js";
-import { EMAIL_SERVICE, USER_REPOSITORY } from "./tokens.js";
+import { EMAIL_SERVICE, USER_REPOSITORY, VERIFICATION_CODE_SERVICE } from "./tokens.js";
 import { parseExpiryToMs } from "./utils.js";
 
 // Repository interface - to be implemented by the consumer
@@ -75,8 +75,8 @@ export interface CreateUserData {
   passwordHash: string;
   firstName?: string | null;
   lastName?: string | null;
-  emailVerificationToken: string;
-  emailVerificationExpires: Date;
+  emailVerificationToken?: string | null;
+  emailVerificationExpires?: Date | null;
   roles: RoleEntity[];
 }
 
@@ -93,7 +93,9 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly analyticsService?: PostHogService,
-    @Inject(EMAIL_SERVICE) private readonly emailService?: EmailService
+    @Inject(EMAIL_SERVICE) private readonly emailService?: EmailService,
+    @Inject(VERIFICATION_CODE_SERVICE)
+    private readonly verificationCodeService?: IVerificationCodeService
   ) {
     this.ACCESS_TOKEN_EXPIRY =
       this.configService.get<string>("JWT_ACCESS_EXPIRATION") || "15m";
@@ -109,35 +111,23 @@ export class AuthService {
   async register(dto: RegisterDto): Promise<AuthResponse> {
     const repo = this.userRepository;
 
-    // Check if email already exists
     const existingEmail = await repo.findByEmail(dto.email);
     if (existingEmail) {
       throw new ConflictException("Email already registered");
     }
 
-    // Check if username already exists
     const existingUsername = await repo.findByUsername(dto.username);
     if (existingUsername) {
       throw new ConflictException("Username already taken");
     }
 
-    // Hash password
     const passwordHash = await bcrypt.hash(dto.password, this.SALT_ROUNDS);
 
-    // Generate email verification token
-    const emailVerificationToken = crypto.randomBytes(32).toString("hex");
-    const emailVerificationTokenHash = this.hashToken(emailVerificationToken);
-    const emailVerificationExpires = new Date(
-      Date.now() + 24 * 60 * 60 * 1000 // 24 hours
-    );
-
-    // Get default user role
     const userRole = await repo.getRoleByName("user");
     if (!userRole) {
       throw new Error("Default user role not found");
     }
 
-    // Create user
     let user: UserEntity;
     try {
       user = await repo.create({
@@ -146,8 +136,6 @@ export class AuthService {
         passwordHash,
         firstName: dto.firstName || null,
         lastName: dto.lastName || null,
-        emailVerificationToken: emailVerificationTokenHash,
-        emailVerificationExpires,
         roles: [userRole],
       });
     } catch (error) {
@@ -157,17 +145,37 @@ export class AuthService {
       throw error;
     }
 
-    // Generate tokens
     const tokens = await this.generateTokens(user);
 
-    // Save refresh token
     const refreshTokenHash = await bcrypt.hash(tokens.refreshToken, this.SALT_ROUNDS);
     await repo.update(user.id, {
       refreshToken: refreshTokenHash,
       refreshTokenExpires: new Date(Date.now() + parseExpiryToMs(this.REFRESH_TOKEN_EXPIRY)),
     });
 
-    // Track analytics
+    // Send email verification code
+    if (this.verificationCodeService && this.emailService) {
+      try {
+        const { code, expiresAt } = await this.verificationCodeService.generateCode(
+          user.id,
+          "email_verification"
+        );
+        await this.emailService.sendVerificationCode({
+          email: user.email,
+          code,
+          name: user.firstName,
+          expiresAt,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Failed to send verification code for ${user.email}: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+        // Do not fail registration if email sending fails
+      }
+    }
+
     this.trackEvent(user.id, "user_registered", {
       email: user.email,
       username: user.username,
@@ -191,21 +199,15 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
-    // Generate tokens
     const tokens = await this.generateTokens(user);
 
-    // Save refresh token
     const refreshTokenHash = await bcrypt.hash(tokens.refreshToken, this.SALT_ROUNDS);
     await repo.update(user.id, {
       refreshToken: refreshTokenHash,
       refreshTokenExpires: new Date(Date.now() + parseExpiryToMs(this.REFRESH_TOKEN_EXPIRY)),
     });
 
-    // Track analytics
-    this.trackEvent(user.id, "user_logged_in", {
-      email: user.email,
-    });
-
+    this.trackEvent(user.id, "user_logged_in", { email: user.email });
     this.logger.log(`User logged in: ${user.email}`);
 
     return this.buildAuthResponse(user, tokens);
@@ -214,7 +216,6 @@ export class AuthService {
   async refreshTokens(refreshToken: string): Promise<TokenPair> {
     const repo = this.userRepository;
 
-    // Verify the refresh token
     let payload: { sub: string };
     try {
       payload = this.jwtService.verify(refreshToken, {
@@ -230,24 +231,17 @@ export class AuthService {
       throw new UnauthorizedException("Invalid refresh token");
     }
 
-    // Check if refresh token matches
-    const isRefreshTokenValid = await bcrypt.compare(
-      refreshToken,
-      user.refreshToken
-    );
+    const isRefreshTokenValid = await bcrypt.compare(refreshToken, user.refreshToken);
     if (!isRefreshTokenValid) {
       throw new UnauthorizedException("Invalid refresh token");
     }
 
-    // Check if refresh token is expired
     if (user.refreshTokenExpires && user.refreshTokenExpires < new Date()) {
       throw new UnauthorizedException("Refresh token expired");
     }
 
-    // Generate new tokens
     const tokens = await this.generateTokens(user);
 
-    // Save new refresh token
     const refreshTokenHash = await bcrypt.hash(tokens.refreshToken, this.SALT_ROUNDS);
     await repo.update(user.id, {
       refreshToken: refreshTokenHash,
@@ -260,9 +254,7 @@ export class AuthService {
   }
 
   async logout(userId: string): Promise<void> {
-    const repo = this.userRepository;
-
-    await repo.update(userId, {
+    await this.userRepository.update(userId, {
       refreshToken: null,
       refreshTokenExpires: null,
     });
@@ -272,9 +264,7 @@ export class AuthService {
   }
 
   async getMe(userId: string): Promise<UserProfile> {
-    const repo = this.userRepository;
-
-    const user = await repo.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundException("User not found");
     }
@@ -293,123 +283,132 @@ export class AuthService {
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
-    const repo = this.userRepository;
-
-    const user = await repo.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundException("User not found");
     }
 
-    const isPasswordValid = await bcrypt.compare(
-      dto.currentPassword,
-      user.passwordHash
-    );
+    const isPasswordValid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
     if (!isPasswordValid) {
       throw new UnauthorizedException("Current password is incorrect");
     }
 
     const newPasswordHash = await bcrypt.hash(dto.newPassword, this.SALT_ROUNDS);
-    await repo.update(userId, { passwordHash: newPasswordHash });
+    await this.userRepository.update(userId, { passwordHash: newPasswordHash });
 
     this.trackEvent(userId, "password_changed", {});
     this.logger.log(`Password changed for user: ${user.email}`);
   }
 
   async forgotPassword(dto: ForgotPasswordDto): Promise<void> {
-    const repo = this.userRepository;
-
-    const user = await repo.findByEmail(dto.email);
+    const user = await this.userRepository.findByEmail(dto.email);
     if (!user) {
-      // Don't reveal if email exists
+      // Don't reveal whether the email exists
       this.logger.debug(`Forgot password requested for non-existent email: ${dto.email}`);
       return;
     }
 
-    const resetToken = crypto.randomBytes(32).toString("hex");
-    const resetTokenHash = this.hashToken(resetToken);
-    const resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    if (!this.verificationCodeService || !this.emailService) {
+      this.logger.warn("VerificationCodeService or EmailService not configured.");
+      return;
+    }
 
-    await repo.update(user.id, {
-      passwordResetToken: resetTokenHash,
-      passwordResetExpires: resetTokenExpires,
-    });
-
-    if (this.emailService) {
-      try {
-        const webAppUrl =
-          this.configService.get<string>("WEB_APP_URL") ||
-          "http://localhost:3000";
-        const resetUrl = `${webAppUrl}/reset-password?token=${resetToken}`;
-        await this.emailService.sendPasswordResetEmail({
-          email: user.email,
-          resetToken,
-          resetUrl,
-          expiresAt: resetTokenExpires,
-        });
-      } catch (error) {
-        this.logger.error(
-          `Failed to send password reset email for ${user.email}: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
-    } else {
-      this.logger.warn(
-        "EmailService not configured; password reset email was not sent."
+    try {
+      const { code, expiresAt } = await this.verificationCodeService.generateCode(
+        user.id,
+        "password_reset"
       );
+      await this.emailService.sendPasswordResetCode({
+        email: user.email,
+        code,
+        name: user.firstName,
+        expiresAt,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to send password reset code for ${user.email}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      // Swallow error to not reveal user existence
     }
 
     this.trackEvent(user.id, "password_reset_requested", {});
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<void> {
-    const repo = this.userRepository;
+    if (!this.verificationCodeService) {
+      throw new BadRequestException("Password reset is not configured");
+    }
 
-    const tokenHash = this.hashToken(dto.token);
-    const user = await repo.findByPasswordResetToken(tokenHash);
+    const user = await this.userRepository.findByEmail(dto.email);
     if (!user) {
-      throw new BadRequestException("Invalid or expired reset token");
+      // Use same error message to not reveal user existence
+      throw new BadRequestException("Invalid or expired verification code");
     }
 
-    if (user.passwordResetExpires && user.passwordResetExpires < new Date()) {
-      throw new BadRequestException("Reset token has expired");
-    }
+    await this.verificationCodeService.verifyCode(user.id, "password_reset", dto.code);
 
     const newPasswordHash = await bcrypt.hash(dto.newPassword, this.SALT_ROUNDS);
-    await repo.update(user.id, {
-      passwordHash: newPasswordHash,
-      passwordResetToken: null,
-      passwordResetExpires: null,
-    });
+    await this.userRepository.update(user.id, { passwordHash: newPasswordHash });
 
     this.trackEvent(user.id, "password_reset_completed", {});
     this.logger.log(`Password reset completed for: ${user.email}`);
   }
 
-  async verifyEmail(dto: VerifyEmailDto): Promise<void> {
-    const repo = this.userRepository;
+  async verifyEmail(userId: string, dto: VerifyEmailDto): Promise<void> {
+    if (!this.verificationCodeService) {
+      throw new BadRequestException("Email verification is not configured");
+    }
 
-    const tokenHash = this.hashToken(dto.token);
-    const user = await repo.findByEmailVerificationToken(tokenHash);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
-      throw new BadRequestException("Invalid verification token");
+      throw new NotFoundException("User not found");
     }
 
-    if (
-      user.emailVerificationExpires &&
-      user.emailVerificationExpires < new Date()
-    ) {
-      throw new BadRequestException("Verification token has expired");
+    if (user.isEmailVerified) {
+      throw new BadRequestException("Email is already verified");
     }
 
-    await repo.update(user.id, {
+    await this.verificationCodeService.verifyCode(userId, "email_verification", dto.code);
+
+    await this.userRepository.update(userId, {
       isEmailVerified: true,
       emailVerificationToken: null,
       emailVerificationExpires: null,
     });
 
-    this.trackEvent(user.id, "email_verified", {});
+    this.trackEvent(userId, "email_verified", {});
     this.logger.log(`Email verified for: ${user.email}`);
+  }
+
+  async resendVerification(userId: string): Promise<void> {
+    if (!this.verificationCodeService || !this.emailService) {
+      throw new BadRequestException("Email verification is not configured");
+    }
+
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    if (user.isEmailVerified) {
+      throw new BadRequestException("Email is already verified");
+    }
+
+    const { code, expiresAt } = await this.verificationCodeService.generateCode(
+      userId,
+      "email_verification"
+    );
+
+    await this.emailService.sendVerificationCode({
+      email: user.email,
+      code,
+      name: user.firstName,
+      expiresAt,
+    });
+
+    this.logger.log(`Verification code resent to: ${user.email}`);
   }
 
   async validateToken(token: string): Promise<JwtPayload | null> {
@@ -451,19 +450,11 @@ export class AuthService {
       ),
     ]);
 
-    return {
-      accessToken,
-      refreshToken,
-      expiresIn: expiresInMs,
-      expiresAt,
-    };
+    return { accessToken, refreshToken, expiresIn: expiresInMs, expiresAt };
   }
 
   private buildAuthResponse(user: UserEntity, tokens: TokenPair): AuthResponse {
-    return {
-      user: this.buildAuthUser(user),
-      tokens,
-    };
+    return { user: this.buildAuthUser(user), tokens };
   }
 
   private buildAuthUser(user: UserEntity): AuthUser {
@@ -494,10 +485,6 @@ export class AuthService {
           this.logger.error(`Failed to track ${event}: ${err.message}`);
         });
     }
-  }
-
-  private hashToken(token: string): string {
-    return crypto.createHash("sha256").update(token).digest("hex");
   }
 
   private isUniqueConstraintError(error: unknown): boolean {

@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import { parseArgs } from "node:util";
 
-import { User, Role, Item, ItemDetail, UserItem } from "./entities/index.js";
+import { User, Role, Item, ItemDetail, UserItem, VerificationCode } from "./entities/index.js";
 
 // Calculate __dirname equivalent for ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -64,7 +64,7 @@ const envPath = findEnvFile();
 console.log("Loading .env from:", envPath);
 config({ path: envPath });
 
-export const entities = [User, Role, Item, ItemDetail, UserItem];
+export const entities = [User, Role, Item, ItemDetail, UserItem, VerificationCode];
 
 export const dataSourceOptions: DataSourceOptions = {
   type: "postgres",

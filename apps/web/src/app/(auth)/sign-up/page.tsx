@@ -22,10 +22,7 @@ export default function SignUpPage(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,7 +44,7 @@ export default function SignUpPage(): JSX.Element {
         firstName: formData.firstName || undefined,
         lastName: formData.lastName || undefined,
       });
-      router.push("/");
+      router.push("/verify-email");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
