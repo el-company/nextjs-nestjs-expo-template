@@ -1,8 +1,9 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { DatabaseModule } from "@repo/db";
-import { AuthModule, RedisModule, WebhooksModule } from "@repo/services";
+import { AuthModule, RedisModule } from "@repo/services";
 import { AppConfigModule } from "./config/app-config.module.js";
+import { UsersModule } from "./users/users.module.js";
 
 import { TRPCModule, TRPCPanelController } from "@repo/trpc";
 import { PostHogModule } from "@repo/analytics";
@@ -15,13 +16,13 @@ import { HealthModule } from "./health/health.module.js";
       isGlobal: true,
     }),
     TRPCModule,
-    DatabaseModule,
+    DatabaseModule.forRoot(),
     RedisModule,
     PostHogModule,
     AppConfigModule,
     AuthModule,
+    UsersModule,
     WebsocketsModule,
-    WebhooksModule,
     HealthModule,
   ],
   controllers: [TRPCPanelController],

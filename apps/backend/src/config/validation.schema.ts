@@ -10,11 +10,11 @@ export const validationSchema = Joi.object({
   DB_USERNAME: Joi.string().required(),
   DB_PASSWORD: Joi.string().required(),
   DB_DATABASE: Joi.string().required(),
-  CLERK_SECRET_KEY: Joi.string().invalid("clerk_secret_key").required(),
-  CLERK_WEBHOOK_SECRET: Joi.string().invalid("clerk_webhook_secret").required(),
-  CLERK_PUBLISHABLE_KEY: Joi.string()
-    .invalid("clerk_publishable_key")
-    .required(),
+
+  // JWT Authentication
+  JWT_SECRET: Joi.string().min(32).required(),
+  JWT_ACCESS_EXPIRATION: Joi.string().default("15m"),
+  JWT_REFRESH_EXPIRATION: Joi.string().default("7d"),
 
   // Redis configuration
   REDIS_URL: Joi.string().uri().optional(),

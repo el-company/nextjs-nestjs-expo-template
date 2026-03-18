@@ -1,14 +1,14 @@
 "use client";
 
 import React from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/providers/auth-provider";
 import Link from "next/link";
 import { Button } from "@repo/ui/components/base/button";
 import { type JSX } from "react";
 import { HelloExample } from "@/components/examples/hello-example";
 
 export default function Home(): JSX.Element {
-  const { isSignedIn } = useAuth();
+  const { isAuthenticated: isSignedIn } = useAuth();
 
   return (
     <div className="container mx-auto px-4 py-12">
@@ -21,7 +21,7 @@ export default function Home(): JSX.Element {
           A modern web application with Next.js, NestJS, and Expo
         </p>
         <p className="mb-6">
-          This template includes authentication with Clerk, TailwindCSS styling,
+          This template includes JWT authentication, TailwindCSS styling,
           and tRPC for end-to-end type safety.
         </p>
 

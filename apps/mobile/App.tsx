@@ -14,10 +14,10 @@ import { SafeAreaWrapper } from "./components/SafeAreaWrapper";
 import { TRPCProvider } from "./providers/TRPCProvider";
 import { HelloExample } from "./components/HelloExample";
 import { ChatDemo } from "./components/ChatDemo";
-import { CustomClerkProvider } from "./providers/ClerkProvider";
+import { AuthProvider } from "./providers/AuthProvider";
 import { PostHogProvider } from "./providers/PostHogProvider";
 import { ReduxProvider } from "./providers/ReduxProvider";
-import { ClerkAuth } from "./components/ClerkAuth";
+import { Auth } from "./components/Auth";
 import { GlueStackDemo } from "./components/GlueStackDemo";
 
 interface ErrorBoundaryProps {
@@ -86,7 +86,7 @@ export default function App() {
           <Text style={[styles.sectionTitle, isDark && styles.textDark]}>
             Authentication:
           </Text>
-          <ClerkAuth />
+          <Auth />
         </View>
 
         <View style={styles.section}>
@@ -135,7 +135,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <ReduxProvider>
-        <CustomClerkProvider>
+        <AuthProvider>
           <PostHogProvider>
             <TRPCProvider>
               <SafeAreaWrapper
@@ -149,7 +149,7 @@ export default function App() {
               </SafeAreaWrapper>
             </TRPCProvider>
           </PostHogProvider>
-        </CustomClerkProvider>
+        </AuthProvider>
       </ReduxProvider>
     </ErrorBoundary>
   );

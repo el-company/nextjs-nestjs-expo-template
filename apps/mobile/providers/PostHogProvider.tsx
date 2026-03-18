@@ -1,7 +1,7 @@
 import React, { ReactNode, useEffect } from "react";
 import { PostHogProvider as PostHogRNProvider } from "posthog-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "./AuthProvider";
 
 // Get the PostHog API key from environment variables
 const POSTHOG_API_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY || "";
@@ -31,18 +31,18 @@ interface PostHogCustomStorage {
 export function PostHogProvider({
   children,
 }: PostHogProviderProps): JSX.Element {
-  const { isSignedIn, userId } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   // Identify user when they sign in
   useEffect(() => {
-    if (isSignedIn && userId && global.posthog?.identify) {
-      // Identify the user in PostHog with their Clerk ID
-      global.posthog.identify(userId);
+    if (isAuthenticated && user?.id && global.posthog?.identify) {
+      // Identify the user in PostHog
+      global.posthog.identify(user.id);
     } else if (global.posthog?.reset) {
       // Reset user identification when signed out
       global.posthog.reset();
     }
-  }, [isSignedIn, userId]);
+  }, [isAuthenticated, user]);
 
   const storage: PostHogCustomStorage = {
     getItem: async (key: string) => AsyncStorage.getItem(key),
@@ -68,8 +68,8 @@ export function PostHogProvider({
         captureNativeAppLifecycleEvents: true,
         customStorage: storage,
         bootstrap: {
-          distinctId: userId || undefined,
-          isIdentifiedId: isSignedIn || false,
+          distinctId: user?.id || undefined,
+          isIdentifiedId: isAuthenticated || false,
         },
       }}
       autocapture={{
