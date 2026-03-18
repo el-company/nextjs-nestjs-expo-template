@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import "@/styles/globals.css";
 import { type JSX } from "react";
 import { AppTRPCProvider } from "@/providers/trpc-provider";
-import { CustomClerkProvider } from "@/providers/clerk-provider";
+import { AuthProvider } from "@/providers/auth-provider";
 import { ReduxProvider } from "@/providers/redux-provider";
 import { PostHogProvider } from "@/providers/posthog-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
@@ -23,7 +23,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="bg-background text-foreground font-sans antialiased">
         <ThemeProvider>
-          <CustomClerkProvider>
+          <AuthProvider>
             <PostHogProvider>
               <ReduxProvider>
                 <AppTRPCProvider>
@@ -34,7 +34,7 @@ export default function RootLayout({
                 </AppTRPCProvider>
               </ReduxProvider>
             </PostHogProvider>
-          </CustomClerkProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

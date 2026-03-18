@@ -6,10 +6,12 @@ export interface AuthData {
   isAuthenticated: boolean;
   user?: {
     id: string;
+    email: string;
+    username: string;
     firstName: string | null;
     lastName: string | null;
-    email: string | null;
     imageUrl: string | null;
+    roles: string[];
   } | null;
 }
 

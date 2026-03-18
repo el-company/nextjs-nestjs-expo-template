@@ -1,28 +1,75 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
 
-// Create route matchers for protected routes
-const publicRoutes = createRouteMatcher(["/", "/sign-in", "/sign-up"]);
-const ignoredRoutes = createRouteMatcher(["/api/trpc"]);
+// Public routes that don't require authentication
+const publicRoutes = [
+  "/",
+  "/sign-in",
+  "/sign-up",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+];
 
-export default clerkMiddleware(async (auth, req) => {
-  // If the request is for a public route, don't enforce authentication
-  if (publicRoutes(req)) {
-    return;
+// Routes to ignore (API, static files, etc.)
+const ignoredRoutes = ["/api/trpc", "/_next", "/favicon.ico"];
+
+function isPublicRoute(pathname: string): boolean {
+  return publicRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+}
+
+function isIgnoredRoute(pathname: string): boolean {
+  return ignoredRoutes.some((route) => pathname.startsWith(route));
+}
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Skip ignored routes
+  if (isIgnoredRoute(pathname)) {
+    return NextResponse.next();
   }
 
-  // If the request is for an ignored route, don't enforce authentication
-  if (ignoredRoutes(req)) {
-    return;
+  // Allow public routes
+  if (isPublicRoute(pathname)) {
+    return NextResponse.next();
   }
 
-  // For all other routes, protect them
-  await auth.protect();
-});
+  // Check for access token
+  const accessToken =
+    request.cookies.get("access_token")?.value ||
+    request.headers.get("authorization")?.replace("Bearer ", "");
+
+  if (!accessToken) {
+    // Redirect to sign-in
+    const signInUrl = new URL("/sign-in", request.url);
+    signInUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(signInUrl);
+  }
+
+  // Verify the token
+  try {
+    const secret = new TextEncoder().encode(
+      process.env.JWT_SECRET || "your-secret-key"
+    );
+    await jwtVerify(accessToken, secret);
+    return NextResponse.next();
+  } catch {
+    // Token is invalid or expired
+    const signInUrl = new URL("/sign-in", request.url);
+    signInUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(signInUrl);
+  }
+}
 
 export const config = {
-  // Matches all paths except for
-  // - Files in the public directory
-  // - _next directory
-  // - favicon.ico, etc.
-  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
+  matcher: [
+    // Match all paths except static files and images
+    "/((?!.*\\..*|_next).*)",
+    "/",
+    "/(api|trpc)(.*)",
+  ],
 };
