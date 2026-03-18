@@ -1,10 +1,3 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 @import "tailwindcss";
 @import "@repo/ui/styles.css";
-
-/**
- * Tailwind CSS official document:
- * https://tailwindcss.com/docs/detecting-classes-in-source-files
- *
- * if you ever need to explicitly add a source that's excluded by default, 
- * you can always add it with the @source directive.
- */

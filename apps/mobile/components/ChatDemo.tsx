@@ -5,11 +5,11 @@ import {
   TextInput,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   FlatList as FlatListType,
+  useColorScheme,
 } from "react-native";
-import { Button, XStack, YStack, H4, Card } from "tamagui";
 import {
   useSocketStatus,
   useChatRoom,
@@ -23,13 +23,14 @@ import { ChatMessagePayload } from "@repo/websockets";
 
 export function ChatDemo() {
   const trpc = useTRPC();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
   const [message, setMessage] = useState("");
   const [roomName, setRoomName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const messageListRef = useRef<FlatListType<ChatMessagePayload>>(null);
 
-  // Socket hooks
-  const { isConnected, loading: socketLoading } = useSocketStatus();
+  const { isConnected } = useSocketStatus();
   const { currentRoomId, roomInfo, joinRoom, leaveRoom, sendMessage } =
     useChatRoom();
   const { lastError } = useSocketErrors();
@@ -51,18 +52,11 @@ export function ChatDemo() {
     })
   );
 
-  // Handle room joining
-  const handleJoinRoom = (roomId: string) => {
-    joinRoom(roomId);
-  };
-
-  // Handle room leaving
   const handleLeaveRoom = () => {
     leaveRoom();
     clearMessages();
   };
 
-  // Handle sending messages
   const handleSendMessage = () => {
     if (message.trim() && currentRoomId) {
       sendMessage(message);
@@ -70,167 +64,151 @@ export function ChatDemo() {
     }
   };
 
-  // Auto-scroll to bottom whenever new messages arrive
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => {
         messageListRef.current?.scrollToEnd({ animated: true });
-      }, 100); // Small delay to ensure render is complete
+      }, 100);
     }
   }, [messages]);
 
-  // Render room list - as a standalone component to avoid nesting VirtualizedLists
+  const isMyMessage = (senderId: string) => {
+    const socketId = socketService.getSocket()?.id;
+    return senderId === socketId;
+  };
+
+  const bg = isDark ? "#09090b" : "#ffffff";
+  const cardBg = isDark ? "#18181b" : "#f4f4f5";
+  const borderColor = isDark ? "#27272a" : "#e4e4e7";
+  const textColor = isDark ? "#fafafa" : "#09090b";
+  const mutedColor = isDark ? "#a1a1aa" : "#71717a";
+
+  // ── Room list ──────────────────────────────────────────────────────────────
   if (!currentRoomId) {
     return (
-      <YStack space="$4" padding="$2">
-        <XStack justifyContent="space-between" alignItems="center">
-          <H4>Chat Rooms</H4>
-          <Text style={styles.connectionStatus}>
-            {isConnected ? (
-              <Text style={{ color: "#4caf50" }}>● Connected</Text>
-            ) : (
-              <Text style={{ color: "#f44336" }}>● Disconnected</Text>
-            )}
+      <View style={[styles.container, { backgroundColor: bg }]}>
+        {/* Header */}
+        <View style={[styles.row, styles.spaceBetween, styles.mb12]}>
+          <Text style={[styles.heading, { color: textColor }]}>Chat Rooms</Text>
+          <Text style={{ fontSize: 13, color: isConnected ? "#22c55e" : "#ef4444" }}>
+            ● {isConnected ? "Connected" : "Disconnected"}
           </Text>
-        </XStack>
+        </View>
 
+        {/* Room list */}
         {isLoadingRooms ? (
-          <ActivityIndicator size="small" />
+          <ActivityIndicator size="small" style={styles.mb12} />
         ) : (
-          <View style={{ height: 200 }}>
+          <View style={[styles.roomList]}>
             {rooms?.length && rooms.length > 0 ? (
               <FlatList
                 data={rooms}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
-                  <Card
-                    bordered
-                    animation="bouncy"
-                    scale={0.95}
-                    marginBottom="$2"
-                    pressStyle={{ scale: 0.975 }}
-                    onPress={() => handleJoinRoom(item.id)}
-                    theme="active"
+                  <Pressable
+                    onPress={() => joinRoom(item.id)}
+                    style={({ pressed }) => [
+                      styles.roomCard,
+                      { backgroundColor: cardBg, borderColor },
+                      pressed && { opacity: 0.75 },
+                    ]}
                   >
-                    <Card.Header>
-                      <Text style={styles.roomName}>{item.name}</Text>
-                    </Card.Header>
-                    <Card.Footer>
-                      <Text style={styles.roomInfo}>
-                        {item.userCount}{" "}
-                        {item.userCount === 1 ? "user" : "users"}
-                      </Text>
-                    </Card.Footer>
-                  </Card>
+                    <Text style={[styles.roomName, { color: textColor }]}>
+                      {item.name}
+                    </Text>
+                    <Text style={[styles.roomMeta, { color: mutedColor }]}>
+                      {item.userCount} {item.userCount === 1 ? "user" : "users"}
+                    </Text>
+                  </Pressable>
                 )}
               />
             ) : (
-              <Text style={styles.noRooms}>No rooms available</Text>
+              <Text style={[styles.emptyText, { color: mutedColor }]}>
+                No rooms available
+              </Text>
             )}
           </View>
         )}
 
+        {/* Create room */}
         {isCreating ? (
-          <YStack space="$2" marginTop="$2">
+          <View style={styles.mb12}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: bg, borderColor, color: textColor }]}
               value={roomName}
               onChangeText={setRoomName}
               placeholder="Room name"
+              placeholderTextColor={mutedColor}
             />
-            <XStack space="$2">
-              <Button
-                flex={1}
+            <View style={[styles.row, styles.gap8, { marginTop: 8 }]}>
+              <Pressable
+                style={({ pressed }) => [styles.btn, styles.btnPrimary, { flex: 1, opacity: pressed ? 0.8 : 1 }]}
                 onPress={() => createRoom({ name: roomName })}
-                theme="active"
               >
-                Create
-              </Button>
-              <Button
-                flex={1}
+                <Text style={styles.btnPrimaryText}>Create</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.btn, styles.btnSecondary, { flex: 1, borderColor, opacity: pressed ? 0.8 : 1 }]}
                 onPress={() => setIsCreating(false)}
-                theme="gray"
               >
-                Cancel
-              </Button>
-            </XStack>
-          </YStack>
+                <Text style={[styles.btnSecondaryText, { color: textColor }]}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
         ) : (
-          <Button onPress={() => setIsCreating(true)} icon={<Text>+</Text>}>
-            Create New Room
-          </Button>
+          <Pressable
+            style={({ pressed }) => [styles.btn, styles.btnSecondary, { borderColor, opacity: pressed ? 0.8 : 1 }]}
+            onPress={() => setIsCreating(true)}
+          >
+            <Text style={[styles.btnSecondaryText, { color: textColor }]}>+ New Room</Text>
+          </Pressable>
         )}
-      </YStack>
+      </View>
     );
   }
 
-  // Determine if a message is from the current user (fix for issue #2)
-  const isMyMessage = (senderId: string) => {
-    // Get the current socket ID
-    const socketId = socketService.getSocket()?.id;
-
-    console.log("Message senderId:", senderId);
-    console.log("Current socket ID:", socketId);
-    console.log("Is my message?", senderId === socketId);
-
-    // In the WebSocket service, if userId is not set, it uses socket.id as the senderId
-    return senderId === socketId;
-  };
-
-  // Render chat room
+  // ── Chat room ──────────────────────────────────────────────────────────────
   return (
-    <YStack space="$4" padding="$2" flex={1}>
-      <Card bordered marginBottom="$2" theme="active">
-        <Card.Header padding="$2">
-          <XStack
-            justifyContent="space-between"
-            alignItems="center"
-            width="100%"
-          >
-            <H4>{roomInfo?.name || currentRoomId}</H4>
-            <Text>
-              {isConnected ? (
-                <Text style={{ color: "#4caf50" }}>● Connected</Text>
-              ) : (
-                <Text style={{ color: "#f44336" }}>● Disconnected</Text>
-              )}
-            </Text>
-          </XStack>
-        </Card.Header>
-      </Card>
+    <View style={[styles.flex, { backgroundColor: bg }]}>
+      {/* Room header */}
+      <View style={[styles.row, styles.spaceBetween, styles.roomHeader, { borderColor, backgroundColor: cardBg }]}>
+        <Text style={[styles.heading, { color: textColor }]}>
+          {roomInfo?.name || currentRoomId}
+        </Text>
+        <Text style={{ fontSize: 13, color: isConnected ? "#22c55e" : "#ef4444" }}>
+          ● {isConnected ? "Connected" : "Disconnected"}
+        </Text>
+      </View>
 
-      <View style={styles.messageContainer}>
+      {/* Messages */}
+      <View style={[styles.flex, styles.messagesContainer, { backgroundColor: cardBg }]}>
         {messages.length === 0 ? (
-          <Text style={styles.noMessages}>
+          <Text style={[styles.emptyText, { color: mutedColor }]}>
             No messages yet. Start chatting!
           </Text>
         ) : (
           <FlatList
             data={messages}
             keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.messagesContent}
+            onContentSizeChange={() => {
+              messageListRef.current?.scrollToEnd({ animated: true });
+            }}
+            ref={messageListRef}
             renderItem={({ item }) => {
               const isMine = isMyMessage(item.senderId);
               return (
-                <View
-                  style={[
-                    styles.messageItem,
-                    isMine ? styles.myMessage : styles.otherMessage,
-                  ]}
-                >
-                  <Text style={styles.messageSender}>{item.senderName}</Text>
-                  <Text style={styles.messageContent}>{item.content}</Text>
-                  <Text style={styles.messageTime}>
+                <View style={[styles.bubble, isMine ? styles.myBubble : styles.theirBubble]}>
+                  <Text style={styles.bubbleSender}>{item.senderName}</Text>
+                  <Text style={[styles.bubbleText, { color: isMine ? "#fafafa" : textColor }]}>
+                    {item.content}
+                  </Text>
+                  <Text style={styles.bubbleTime}>
                     {formatMessageTime(item.timestamp)}
                   </Text>
                 </View>
               );
             }}
-            inverted={false}
-            contentContainerStyle={styles.messagesContentContainer}
-            onContentSizeChange={() => {
-              messageListRef.current?.scrollToEnd({ animated: true });
-            }}
-            ref={messageListRef}
           />
         )}
       </View>
@@ -239,138 +217,140 @@ export function ChatDemo() {
         <Text style={styles.errorText}>Error: {lastError.message}</Text>
       )}
 
-      <Card bordered theme="active">
-        <Card.Header padding="$2">
-          <XStack space="$2" width="100%">
-            <TextInput
-              style={[styles.messageInput, { flex: 1 }]}
-              value={message}
-              onChangeText={setMessage}
-              placeholder="Type a message..."
-            />
-            <Button onPress={handleSendMessage} disabled={!message.trim()}>
-              Send
-            </Button>
-          </XStack>
-        </Card.Header>
-        <Card.Footer>
-          <Button onPress={handleLeaveRoom} theme="red" width="100%">
-            Leave Room
-          </Button>
-        </Card.Footer>
-      </Card>
-    </YStack>
+      {/* Input bar */}
+      <View style={[styles.inputBar, { borderColor, backgroundColor: bg }]}>
+        <TextInput
+          style={[styles.messageInput, { flex: 1, backgroundColor: cardBg, borderColor, color: textColor }]}
+          value={message}
+          onChangeText={setMessage}
+          placeholder="Type a message…"
+          placeholderTextColor={mutedColor}
+        />
+        <Pressable
+          style={({ pressed }) => [
+            styles.btn,
+            styles.btnPrimary,
+            { marginLeft: 8, opacity: !message.trim() || pressed ? 0.5 : 1 },
+          ]}
+          onPress={handleSendMessage}
+          disabled={!message.trim()}
+        >
+          <Text style={styles.btnPrimaryText}>Send</Text>
+        </Pressable>
+      </View>
+
+      <Pressable
+        style={({ pressed }) => [styles.btn, styles.btnDestructive, { margin: 8, opacity: pressed ? 0.8 : 1 }]}
+        onPress={handleLeaveRoom}
+      >
+        <Text style={styles.btnPrimaryText}>Leave Room</Text>
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  connectionStatus: {
-    fontSize: 14,
-  },
-  roomName: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  roomInfo: {
-    fontSize: 14,
-    color: "#666",
-  },
-  noRooms: {
-    textAlign: "center",
-    color: "#666",
-    padding: 16,
-  },
-  input: {
+  flex: { flex: 1 },
+  container: { padding: 12 },
+  row: { flexDirection: "row", alignItems: "center" },
+  spaceBetween: { justifyContent: "space-between" },
+  gap8: { gap: 8 },
+  mb12: { marginBottom: 12 },
+  heading: { fontSize: 17, fontWeight: "600" },
+
+  // Room list
+  roomList: { height: 200, marginBottom: 12 },
+  roomCard: {
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 8,
-    padding: 10,
-    backgroundColor: "#ffffff",
-    color: "#000000",
+    padding: 12,
+    marginBottom: 8,
   },
-  messageContainer: {
-    flex: 1,
+  roomName: { fontSize: 15, fontWeight: "500", marginBottom: 2 },
+  roomMeta: { fontSize: 13 },
+  emptyText: { textAlign: "center", padding: 16, fontSize: 14 },
+
+  // Room header
+  roomHeader: {
+    padding: 12,
+    borderBottomWidth: 1,
+  },
+
+  // Messages
+  messagesContainer: {
     borderRadius: 8,
-    padding: 10,
-    backgroundColor: "#ffffff",
+    margin: 8,
+    padding: 8,
   },
-  messageItem: {
+  messagesContent: { paddingBottom: 16 },
+  bubble: {
     padding: 10,
     borderRadius: 12,
-    marginBottom: 10,
+    marginBottom: 8,
     maxWidth: "80%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
   },
-  myMessage: {
-    backgroundColor: "#DCF8C6",
+  myBubble: {
+    backgroundColor: "#09090b",
     alignSelf: "flex-end",
     borderBottomRightRadius: 2,
   },
-  otherMessage: {
-    backgroundColor: "#FFFFFF",
+  theirBubble: {
+    backgroundColor: "#e4e4e7",
     alignSelf: "flex-start",
     borderBottomLeftRadius: 2,
   },
-  messageSender: {
-    fontSize: 12,
-    fontWeight: "bold",
-    marginBottom: 2,
-    color: "#000000",
+  bubbleSender: { fontSize: 11, fontWeight: "600", color: "#a1a1aa", marginBottom: 2 },
+  bubbleText: { fontSize: 14 },
+  bubbleTime: { fontSize: 10, color: "#a1a1aa", alignSelf: "flex-end", marginTop: 4 },
+
+  // Input bar
+  inputBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 8,
+    borderTopWidth: 1,
   },
-  messageContent: {
-    fontSize: 15,
-    color: "#000000",
-  },
-  messageTime: {
-    fontSize: 10,
-    color: "#666",
-    alignSelf: "flex-end",
-    marginTop: 4,
-  },
-  noMessages: {
-    textAlign: "center",
-    color: "#666",
-    padding: 16,
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 14,
+    marginBottom: 8,
   },
   messageInput: {
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 8,
-    padding: 10,
-    backgroundColor: "#ffffff",
-    color: "#000000",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
   },
-  errorText: {
-    color: "red",
-    fontSize: 12,
+
+  // Buttons
+  btn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  messagesContentContainer: {
-    paddingBottom: 20,
-  },
+  btnPrimary: { backgroundColor: "#09090b" },
+  btnPrimaryText: { color: "#fafafa", fontWeight: "500", fontSize: 14 },
+  btnSecondary: { backgroundColor: "transparent", borderWidth: 1 },
+  btnSecondaryText: { fontWeight: "500", fontSize: 14 },
+  btnDestructive: { backgroundColor: "#ef4444" },
+
+  errorText: { color: "#ef4444", fontSize: 12, marginHorizontal: 8 },
 });
 
-// Helper to format message timestamp
 const formatMessageTime = (timestamp: number): string => {
   const date = new Date(timestamp);
   const now = new Date();
-
-  // Same day - show time only
   if (date.toDateString() === now.toDateString()) {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
-
-  // Within a week - show day and time
-  const daysAgo = Math.floor(
-    (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
-  );
+  const daysAgo = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
   if (daysAgo < 7) {
     return `${date.toLocaleDateString([], { weekday: "short" })} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
   }
-
-  // Older - show date and time
   return `${date.toLocaleDateString([], { month: "short", day: "numeric" })} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 };

@@ -5,12 +5,27 @@
     "module": "preserve",
     "jsx": "react-native",
     "paths": {
-      "@/*": ["./*"],
-      "@repo/ui/*": ["../ui/src/*"],
-      "@repo/backend/*": ["../backend/src/*"],
-      "@repo/websockets/*": ["../websockets/src/*"],
-      "@repo/trpc/*": ["../trpc/src/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@repo/ui/*": [
+        "../ui/src/*"
+      ],
+      "@repo/backend/*": [
+        "../backend/src/*"
+      ],
+      "@repo/websockets/*": [
+        "../websockets/src/*"
+      ],
+      "@repo/trpc/*": [
+        "../trpc/src/*"
+      ]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", "app.config.ts"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "app.config.ts",
+    "nativewind-env.d.ts"
+  ]
 }

@@ -1,0 +1,4 @@
+/* NativeWind v4 global CSS — required by metro.config.js withNativeWind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

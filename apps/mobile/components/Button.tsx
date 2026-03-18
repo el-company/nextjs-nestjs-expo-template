@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import {
   TouchableOpacity,
   Text,
@@ -17,41 +17,19 @@ export const Button = ({
   style,
   ...props
 }: ButtonProps) => {
-  console.log("[Button] Rendering button:", { title, variant });
+  const buttonStyle = [
+    styles.button,
+    variant === "primary" && styles.primaryButton,
+    variant === "destructive" && styles.destructiveButton,
+    style,
+  ];
 
-  // Use useMemo for style objects to prevent unnecessary re-renders
-  const buttonStyle = useMemo(
-    () => [
-      styles.button,
-      variant === "primary" && styles.primaryButton,
-      variant === "destructive" && styles.destructiveButton,
-      style,
-    ],
-    [variant, style]
-  );
-
-  const textStyle = useMemo(
-    () => [styles.text, variant === "default" && styles.defaultText],
-    [variant]
-  );
-
-  // Use onPress handler wrapper to catch any errors
-  const handlePress = (event: any) => {
-    try {
-      console.log("[Button] Button pressed:", title);
-      if (props.onPress) {
-        props.onPress(event);
-      }
-    } catch (error) {
-      console.error("[Button] Error in button press handler:", error);
-    }
-  };
+  const textStyle = [styles.text, variant === "default" && styles.defaultText];
 
   return (
     <TouchableOpacity
       style={buttonStyle}
       {...props}
-      onPress={handlePress}
       testID={`button-${title.replace(/\s+/g, "-").toLowerCase()}`}
     >
       <Text style={textStyle}>{title}</Text>

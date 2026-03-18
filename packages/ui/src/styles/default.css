@@ -6,54 +6,65 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
   .dark {
-    --color-background-default: var(--color-dark-background-default);
-    --color-background-paper: var(--color-dark-background-paper);
-    --color-background-level1: var(--color-dark-background-level1);
-    --color-background-level2: var(--color-dark-background-level2);
-    --color-background-level3: var(--color-dark-background-level3);
-    --color-background-light: var(--color-dark-background-light);
-    --color-background-dark: var(--color-dark-background-dark);
-    --color-text-primary: var(--color-dark-text-primary);
-    --color-text-secondary: var(--color-dark-text-secondary);
-    --color-text-accent: var(--color-dark-text-accent);
-    --color-border-default: var(--color-dark-border-default);
-    --color-border-light: var(--color-dark-border-light);
-    --color-border-dark: var(--color-dark-border-dark);
-    --color-border-accent: var(--color-dark-border-accent);
-    --color-scrollbar-track: var(--color-dark-scrollbar-track);
-    --color-scrollbar-thumb: var(--color-dark-scrollbar-thumb);
+    /* Base */
+    --color-background: #09090b;
+    --color-foreground: #fafafa;
 
-    /* Update card, popover, and code colors for dark mode */
-    --color-card: var(--color-background-level1);
-    --color-card-muted: var(--color-background-level2);
-    --color-card-hover: var(--color-background-level2);
-    --color-card-active: var(--color-background-level3);
-    --color-card-foreground: var(--color-text-primary);
+    --color-card: #09090b;
+    --color-card-foreground: #fafafa;
 
-    --color-popover: var(--color-background-level1);
-    --color-popover-foreground: var(--color-text-primary);
+    --color-popover: #09090b;
+    --color-popover-foreground: #fafafa;
 
-    --color-code: #1e1e1e;
-    --color-code-foreground: #e0e0e0;
+    --color-primary: #fafafa;
+    --color-primary-foreground: #09090b;
 
-    /* Update markdown-specific colors for dark mode */
-    --color-markdown-h1: var(--color-primary-400);
-    --color-markdown-h2: var(--color-accent-400);
-    --color-markdown-h3: var(--color-secondary-400);
-    --color-markdown-h4: var(--color-dark-text-secondary);
-    --color-markdown-text: var(--color-dark-text-primary);
-    --color-markdown-link: var(--color-primary-400);
-    --color-markdown-codebg: var(--color-dark-code);
-    --color-markdown-codetext: var(--color-dark-code-foreground);
-    --color-markdown-inlinecodebg: var(--color-dark-inline-code);
-    --color-markdown-inlinecodetext: var(--color-dark-inline-code-foreground);
-    --color-markdown-blockquote: var(--color-muted-foreground);
-    --color-markdown-listmarker: var(--color-primary-400);
+    --color-secondary: #27272a;
+    --color-secondary-foreground: #fafafa;
 
-    /* Update input colors for dark mode */
-    --color-input: var(--color-background-level1);
-    --color-input-hover: var(--color-background-level2);
-    --color-input-focus: var(--color-background-level2);
+    --color-muted: #27272a;
+    --color-muted-foreground: #a1a1aa;
+
+    --color-accent: #27272a;
+    --color-accent-foreground: #fafafa;
+
+    --color-destructive: #7f1d1d;
+    --color-destructive-foreground: #fafafa;
+
+    --color-border: #27272a;
+    --color-input: #27272a;
+    --color-ring: #d4d4d8;
+
+    /* Backward compat aliases */
+    --color-background-default: #09090b;
+    --color-background-paper: #18181b;
+    --color-background-level1: #27272a;
+    --color-background-level2: #3f3f46;
+    --color-background-level3: #52525b;
+    --color-text-primary: #fafafa;
+    --color-text-secondary: #a1a1aa;
+    --color-border-default: #27272a;
+
+    /* Scrollbar */
+    --color-scrollbar-track: #27272a;
+    --color-scrollbar-thumb: #52525b;
+
+    /* Primary scale dark overrides */
+    --color-primary-500: #fafafa;
+    --color-primary-600: #e4e4e7;
+    --color-primary-700: #d4d4d8;
+    --color-primary-400: #a1a1aa;
+    --color-primary-300: #71717a;
   }
 }
