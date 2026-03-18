@@ -41,9 +41,6 @@ export class AddAuthenticationFields1710864000000 implements MigrationInterface 
         await queryRunner.query(`CREATE INDEX "IDX_user_roles_user" ON "user_roles" ("user_id")`);
         await queryRunner.query(`CREATE INDEX "IDX_user_roles_role" ON "user_roles" ("role_id")`);
 
-        // Drop clerkUserId column from users
-        await queryRunner.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "clerkUserId"`);
-
         // Add new authentication columns to users
         await queryRunner.query(`ALTER TABLE "users" ADD "passwordHash" character varying(255) NOT NULL DEFAULT ''`);
         await queryRunner.query(`ALTER TABLE "users" ADD "firstName" character varying(100)`);
@@ -81,9 +78,6 @@ export class AddAuthenticationFields1710864000000 implements MigrationInterface 
         await queryRunner.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "lastName"`);
         await queryRunner.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "firstName"`);
         await queryRunner.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "passwordHash"`);
-
-        // Re-add clerkUserId column
-        await queryRunner.query(`ALTER TABLE "users" ADD "clerkUserId" character varying(255)`);
 
         // Drop user_roles indexes
         await queryRunner.query(`DROP INDEX IF EXISTS "IDX_user_roles_role"`);

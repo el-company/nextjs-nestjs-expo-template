@@ -11,7 +11,6 @@
 <a href="https://typeorm.io"><img src="https://img.shields.io/badge/TypeORM-E83524?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xNiA4SDhjLS4yNjYgMC0uNTIuMTA1LS43MDcuMjkzQTEgMSAwIDAgMCA3IDl2MTRhMSAxIDAgMCAwIDEgMWg4YTEgMSAwIDAgMCAxLTFWOWExIDEgMCAwIDAtMS0xem0tMSAydjEySDl2LTEyem05LTJoLThhMSAxIDAgMCAwLTEgMXYxNGExIDEgMCAwIDAgMSAxaDhhMSAxIDAgMCAwIDEtMVY5YTEgMSAwIDAgMC0xLTF6bS0xIDJ2MTJoLTZ2LTEyeiIvPjwvc3ZnPg==" alt="TypeORM" /></a>
 <a href="https://trpc.io"><img src="https://img.shields.io/badge/tRPC-%232596BE.svg?style=for-the-badge&logo=trpc&logoColor=white" alt="tRPC" /></a>
 <a href="https://tamagui.dev"><img src="https://img.shields.io/badge/Tamagui-2C4159?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAyNCIgaGVpZ2h0PSIxMDI0IiB2aWV3Qm94PSIwIDAgMTAyNCAxMDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8Y2lyY2xlIGN4PSI1MTIiIGN5PSI1MTIiIHI9IjUxMiIgZmlsbD0iIzE4QTBGQiIvPgo8cGF0aCBkPSJNMjY1Ljg1MSAyNDMuOTFWNDk3LjAwN0MyNjUuODUxIDU0MC42MjMgMzAxLjIzNSA1NzYuMDA3IDM0NC44NTEgNTc2LjAwN0g1OTUuNDc3QzYzOS4wOTMgNTc2LjAwNyA2NzQuNDc3IDU0MC42MjMgNjc0LjQ3NyA0OTcuMDA3VjI0My45MUw0NjguNjgxIDc5LjYzMzNDNDUxLjk5NSA2OC42ODE5IDQyOS45NDMgNjguNjM1OCA0MTMuMjE5IDc5LjUxNzJMMjY1Ljg1MSAyNDMuOTFaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNNzYxLjQ1NSA3NzguNzc1VjUyNS42NzlDNzYxLjQ1NSA0ODIuMDYzIDcyNi4wNzEgNDQ2LjY3OSA2ODIuNDU1IDQ0Ni42NzlINDMxLjgyOUMzODguMjEzIDQ0Ni42NzkgMzUyLjgyOSA0ODIuMDYzIDM1Mi44MjkgNTI1LjY3OVY3NzguNzc1TDU1OC42MjUgOTQzLjA1MkM1NzUuMzExIDk1NC4wMDMgNTk3LjM2MyA5NTQuMDUgNjE0LjA4NyA5NDMuMTY4TDc2MS40NTUgNzc4Ljc3NVoiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPg==" alt="Tamagui" /></a>
-<a href="https://clerk.com"><img src="https://img.shields.io/badge/Clerk-6C47FF?style=for-the-badge&logo=clerk&logoColor=white" alt="Clerk" /></a>
 <a href="https://tanstack.com/query"><img src="https://img.shields.io/badge/TanStack%20Query-FF4154?style=for-the-badge&logo=react-query&logoColor=white" alt="TanStack Query" /></a>
 <a href="https://posthog.com"><img src="https://img.shields.io/badge/PostHog-000000?style=for-the-badge&logo=posthog&logoColor=white" alt="PostHog" /></a>
 <a href="https://www.postgresql.org"><img src="https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" /></a>
@@ -37,7 +36,7 @@ A modern full-stack, type-safe monorepo template with real-time capabilities and
 - **🔄 Full Type Safety**: End-to-end type safety from backend to frontend with tRPC and typed WebSockets
 - **🚀 Modern Stack**: Next.js, NestJS, and Expo with TypeScript
 - **🔌 Real-time Communication**: Type-safe WebSockets integration with Socket.IO
-- **👤 Authentication**: Clerk integration for secure user management
+- **👤 Authentication**: Pluggable authentication layer for secure user management
 - **📊 Analytics**: PostHog integration for tracking user behavior
 - **🎨 UI Components**: TailwindCSS with ShadCN UI for web and Tamagui for mobile
 - **🧩 Modular Architecture**: Well-organized packages for code sharing
@@ -113,7 +112,6 @@ nextjs-nestjs-expo-template/
   <a href="https://typeorm.io/"><img src="https://raw.githubusercontent.com/typeorm/typeorm/master/resources/logo_big.png" alt="TypeORM" height="50" /></a>&nbsp;&nbsp;
   <a href="https://tamagui.dev/"><img src="https://avatars.githubusercontent.com/u/94025540?s=48&v=4" alt="Tamagui" height="50" /></a>&nbsp;&nbsp;
   <a href="https://ui.shadcn.com/"><img src="https://avatars.githubusercontent.com/u/139895814?s=200&v=4" alt="shadcn/ui" height="50" /></a>&nbsp;&nbsp;
-  <a href="https://clerk.com/"><img src="https://clerk.com/images/clerk-logo.svg" alt="Clerk" height="50" /></a>&nbsp;&nbsp;
   <a href="https://tanstack.com/query"><img src="https://tanstack.com/_build/assets/logo-color-100w-br5_Ikqp.png" alt="TanStack Query" height="50" /></a>&nbsp;&nbsp;
   <a href="https://posthog.com/"><img src="https://posthog.com/brand/posthog-logo.svg" alt="PostHog" height="50" /></a>&nbsp;&nbsp;
   <a href="https://turbo.build/"><img src="https://turbo.build/images/docs/repo/repo-hero-logo-dark.svg" alt="Turborepo" height="50" /></a>
@@ -144,7 +142,6 @@ nextjs-nestjs-expo-template/
 - **TypeScript**: Typed superset of JavaScript
 - **tRPC**: End-to-end typesafe APIs
 - **Turborepo**: High-performance build system for JavaScript/TypeScript monorepos
-- **Clerk**: Authentication and user management
 - **PostHog**: Open-source product analytics platform
 
 ## 📖 Documentation
@@ -242,5 +239,4 @@ Blaž Aristovnik - [@barisgit](https://github.com/barisgit) - [aristovnik.me](ht
 - [Socket.IO](https://socket.io/)
 - [ShadCN UI](https://ui.shadcn.com/)
 - [Tamagui](https://tamagui.dev/)
-- [Clerk](https://clerk.dev/)
 - [PostHog](https://posthog.com/)

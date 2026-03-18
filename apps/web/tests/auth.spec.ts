@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 /**
  * Authentication tests
- * Note: These tests are placeholders and should be updated once Clerk authentication is implemented
+ * Note: These tests are placeholders and should be updated once authentication is implemented
  */
 
 test.describe("Authentication flows", () => {
@@ -12,7 +12,7 @@ test.describe("Authentication flows", () => {
 
     // Check for login/signup elements (update selectors based on your actual UI)
     // This is a placeholder test that assumes there's some login-related UI element
-    // Once Clerk is implemented, update this test with specific selectors
+    // Once authentication is implemented, update this test with specific selectors
     const loginElement = page
       .getByRole("link")
       .filter({ hasText: /login|sign in|signin/i });
@@ -28,7 +28,7 @@ test.describe("Authentication flows", () => {
   });
 
   test("authenticated user sees profile options", () => {
-    // This test will need to be updated once Clerk authentication is implemented
+    // This test will need to be updated once authentication is implemented
     // It will need to handle the authentication process
 
     // For now, we'll skip this test as a placeholder

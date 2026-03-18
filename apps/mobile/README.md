@@ -190,7 +190,6 @@ mobile/
 
 ```env
 API_URL=http://localhost:3000
-CLERK_PUBLISHABLE_KEY=your_clerk_key
 ```
 
 ## Tamagui Theming

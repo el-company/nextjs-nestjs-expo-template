@@ -223,7 +223,7 @@ export const PostHogMobileProvider: React.FC<PostHogMobileProviderProps> = ({
 };
 
 /**
- * Component to identify users with Clerk authentication in mobile apps
+ * Component to identify users with application authentication in mobile apps
  */
 export const PostHogMobileIdentify: React.FC<{
   userId?: string;
