@@ -19,10 +19,6 @@ const makeRequest = (overrides: { cookies?: Record<string, string>; body?: Recor
 
 const basePayload: JwtRefreshPayload = {
   sub: "user-id-123",
-  email: "test@example.com",
-  username: "testuser",
-  roles: ["user"],
-  aud: "refresh",
 };
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
