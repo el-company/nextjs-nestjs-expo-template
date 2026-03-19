@@ -23,12 +23,6 @@ export default function ChatPage(): JSX.Element {
     <div className="container mx-auto p-4 h-[calc(100vh-4rem)]">
       <h1 className="text-2xl font-bold mb-6 text-center">Real-time Chat</h1>
 
-      {/* Debug Info */}
-      <div className="mb-4 p-2 bg-gray-100 rounded text-sm text-gray-700">
-        <p>Debug - Room ID: {currentRoomId ?? "Not joined"}</p>
-        <p>Debug - Room Info: {roomInfo ? roomInfo.name : "No room info"}</p>
-      </div>
-
       <div className="flex flex-col sm:flex-row gap-6 h-[calc(100%-8rem)] pb-2">
         <div className="w-full md:w-1/3 py-2">
           <RoomSelector />

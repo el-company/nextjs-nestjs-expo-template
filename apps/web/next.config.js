@@ -11,14 +11,7 @@ const nextConfig = {
     "@t3-oss/env-nextjs",
     "@t3-oss/env-core",
   ],
-  experimental: {
-    serverExternalPackages: [
-      "@trpc/client",
-      "@trpc/server",
-      "@trpc/react-query",
-      "@trpc/tanstack-react-query",
-    ],
-  },
+  experimental: {},
   webpack: (config) => {
     config.module.rules.push({
       test: /\.mjs$/,
@@ -29,9 +22,10 @@ const nextConfig = {
   },
   images: {
     remotePatterns: [
-      {
-        hostname: "placehold.co",
-      },
+      { hostname: "placehold.co" },
+      { hostname: "avatars.githubusercontent.com" },
+      { hostname: "lh3.googleusercontent.com" },
+      { hostname: "*.amazonaws.com" },
     ],
   },
 };

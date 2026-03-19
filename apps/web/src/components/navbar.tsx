@@ -2,6 +2,7 @@
 
 import React, { type JSX } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/providers/auth-provider";
 import { Button } from "@repo/ui/components/base/button";
@@ -57,10 +58,12 @@ function UserMenu(): JSX.Element {
     <div className="relative group">
       <button className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-muted">
         {user?.imageUrl ? (
-          <img
+          <Image
             src={user.imageUrl}
             alt={user.username}
-            className="w-8 h-8 rounded-full"
+            width={32}
+            height={32}
+            className="rounded-full"
           />
         ) : (
           <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
