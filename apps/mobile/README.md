@@ -8,7 +8,7 @@ This React Native application built with Expo provides a mobile interface for th
 - Integration with shared packages
 - Type-safe API communication with tRPC
 - Real-time functionality with WebSockets
-- UI components with Tamagui
+- UI components with NativeWind v4 + GlueStack UI v2
 - Analytics tracking
 
 ## Development
@@ -91,48 +91,40 @@ export function ChatScreen({ roomId }) {
 }
 ```
 
-### Tamagui UI Component Usage
+### NativeWind + GlueStack UI Component Usage
 
-Tamagui is integrated for a consistent and performant UI experience:
+The app uses NativeWind v4 (Tailwind CSS for React Native) and GlueStack UI v2 for a consistent and performant UI experience:
 
 ```tsx
 import React, { useState } from 'react';
-import { Button, Card, H2, Paragraph, View, Input } from 'tamagui';
+import { View, Text, TextInput, Pressable } from 'react-native';
 
 export function ProfileCard({ user }) {
   const [bio, setBio] = useState(user?.bio || '');
-  
+
   return (
-    <Card
-      bordered
-      elevate
-      size="$4"
-      animation="bouncy"
-      width="100%"
-      scale={0.9}
-      hoverStyle={{ scale: 0.925 }}
-      pressStyle={{ scale: 0.875 }}
-      theme="active"
-    >
-      <Card.Header padded>
-        <H2>{user?.name || 'User Profile'}</H2>
-        <Paragraph>{user?.email}</Paragraph>
-      </Card.Header>
-      
-      <Card.Footer padded>
-        <View style={{ gap: 12 }}>
-          <Input
-            placeholder="Enter your bio"
-            value={bio}
-            onChangeText={setBio}
-            width="100%"
-          />
-          <Button theme="blue" onPress={() => console.log('Bio updated:', bio)}>
-            Update Profile
-          </Button>
-        </View>
-      </Card.Footer>
-    </Card>
+    <View className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+      <Text className="text-xl font-semibold text-zinc-900 dark:text-white">
+        {user?.name || 'User Profile'}
+      </Text>
+      <Text className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        {user?.email}
+      </Text>
+      <TextInput
+        className="mt-3 rounded-lg border border-gray-200 px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-white"
+        placeholder="Enter your bio"
+        value={bio}
+        onChangeText={setBio}
+      />
+      <Pressable
+        className="mt-3 rounded-lg bg-zinc-900 px-4 py-2 dark:bg-white"
+        onPress={() => console.log('Bio updated:', bio)}
+      >
+        <Text className="text-center font-medium text-white dark:text-zinc-900">
+          Update Profile
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 ```
@@ -169,18 +161,16 @@ function FeatureScreen() {
 
 ```text
 mobile/
-├── app/                 # Application code
-│   ├── components/      # Reusable components
-│   ├── screens/         # Screen components
-│   ├── navigation/      # Navigation configuration
-│   ├── hooks/           # Custom hooks
-│   ├── utils/           # Utility functions
-│   └── services/        # API services
+├── app/                 # Expo Router screens (file-based routing)
+├── components/          # Reusable UI components
+├── providers/           # React context providers (Auth, TRPC, PostHog)
+├── utils/               # Utility functions (api, trpc client)
 ├── assets/              # Static assets
 ├── .env.example         # Example environment variables
-├── app.config.js        # Expo configuration (entry point)
-├── app.config.ts        # Expo configuration (the actual config)
-└── tamagui.config.ts    # Tamagui configuration
+├── app.config.ts        # Expo configuration
+├── global.css           # NativeWind global CSS
+├── tailwind.config.js   # NativeWind / Tailwind v3 config
+└── metro.config.js      # Metro bundler with NativeWind
 ```
 
 ## Environment Setup
@@ -189,34 +179,18 @@ mobile/
 2. Update the environment variables as needed:
 
 ```env
-API_URL=http://localhost:3000
+EXPO_PUBLIC_TRPC_URL=http://localhost:3001/trpc
+
+EXPO_PUBLIC_POSTHOG_KEY=your_posthog_key_here
+EXPO_PUBLIC_POSTHOG_HOST=https://app.posthog.com
 ```
 
-## Tamagui Theming
-
-The app uses Tamagui for a consistent UI experience. The theme is configured in `tamagui.config.ts`:
-
-```tsx
-// Customize theme colors, fonts, and other properties
-const tamaguiConfig = createTamagui({
-  ...defaultConfig,
-  fonts: {
-    ...defaultConfig.fonts,
-    heading: interFont,
-    body: interFont,
-  },
-  // Add custom themes and tokens here
-});
-```
-
-## Known Issues
-
-- Expo SDK 52 is not compatible with React 18. We will use React 19 when we upgrade to Expo SDK 53 (in May 2025).
+> **Note:** For physical device testing replace `localhost` with your machine's local IP address or use a tunneling tool like ngrok.
 
 ## Adding New Features
 
-1. Create screen components in `app/screens/`
-2. Add navigation in `app/navigation/`
-3. Connect to backend APIs using tRPC procedures
-4. Use Tamagui components for consistent UI
+1. Create screens in `app/` following Expo Router file conventions
+2. Add reusable components to `components/`
+3. Connect to backend APIs using tRPC procedures from `utils/api.ts`
+4. Use NativeWind `className` prop for styling
 5. Add analytics tracking for important user actions
