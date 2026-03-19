@@ -82,6 +82,8 @@ export class AuthController {
 
   @Post("refresh")
   @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Refresh access token" })
   @ApiBody({ type: RefreshTokenDto })
@@ -116,8 +118,7 @@ export class AuthController {
   }
 
   @Post("resend-verification")
-  @UseGuards(JwtAuthGuard)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()

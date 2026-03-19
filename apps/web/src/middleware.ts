@@ -37,11 +37,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for refresh token cookie (httpOnly)
+  // Check for refresh token cookie (httpOnly).
+  // Note: this is an existence check only — the token may be expired or invalid.
+  // Full JWT validation is intentionally deferred to the API layer to keep
+  // middleware fast. A 401 from the API will trigger token refresh or logout.
   const refreshToken = request.cookies.get("refresh_token")?.value;
 
   if (!refreshToken) {
-    // Redirect to sign-in
     const signInUrl = new URL("/sign-in", request.url);
     signInUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(signInUrl);

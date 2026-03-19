@@ -4,8 +4,7 @@ import { useState, type JSX } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@repo/ui/components/base/button";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+import { getApiUrl } from "@/providers/auth-provider";
 
 export default function ForgotPasswordPage(): JSX.Element {
   const router = useRouter();
@@ -20,7 +19,7 @@ export default function ForgotPasswordPage(): JSX.Element {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/auth/forgot-password`, {
+      const response = await fetch(`${getApiUrl()}/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

@@ -16,6 +16,9 @@ module.exports = {
   },
   moduleNameMapper: {
     "^@repo/db/(.*)$": "<rootDir>/../../packages/db/dist/$1",
+    "^@repo/analytics$": "<rootDir>/../../packages/analytics/dist/index.cjs",
+    "^@repo/services$": "<rootDir>/../../packages/services/src/index.ts",
+    "^@repo/services/(.*)$": "<rootDir>/../../packages/services/src/$1",
     "^src/(.*)$": "<rootDir>/src/$1",
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },

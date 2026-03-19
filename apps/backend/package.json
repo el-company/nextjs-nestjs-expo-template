@@ -59,6 +59,7 @@
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
+    "@types/mjml": "^4.7.4",
     "@types/node": "^25.3.3",
     "@types/nodemailer": "^6.4.17",
     "@types/supertest": "^7.2.0",

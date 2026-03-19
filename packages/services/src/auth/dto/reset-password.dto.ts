@@ -32,10 +32,10 @@ export class ResetPasswordDto {
   @IsString()
   @MinLength(8)
   @Matches(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s])[^\s]{8,}$/,
     {
       message:
-        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)",
+        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
     }
   )
   newPassword: string;
