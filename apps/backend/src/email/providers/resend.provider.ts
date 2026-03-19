@@ -9,11 +9,15 @@ export class ResendEmailProvider implements IEmailProvider {
   private readonly client: Resend | null;
   private readonly fromAddress: string | null;
 
+  private readonly devRedirect: string | null;
+
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>("RESEND_API_KEY");
     const from = this.configService.get<string>("RESEND_FROM");
 
     this.fromAddress = from || null;
+    this.devRedirect =
+      this.configService.get<string>("DEV_EMAIL_REDIRECT") || null;
 
     if (!apiKey || !from) {
       this.logger.warn(
@@ -40,9 +44,16 @@ export class ResendEmailProvider implements IEmailProvider {
       return;
     }
 
+    const recipient = this.devRedirect ?? params.to;
+    if (this.devRedirect) {
+      this.logger.warn(
+        `[DEV] Redirecting email from ${params.to} to ${this.devRedirect}`
+      );
+    }
+
     const { error } = await this.client.emails.send({
       from: this.fromAddress,
-      to: params.to,
+      to: recipient,
       subject: params.subject,
       html: params.html,
       text: params.text,

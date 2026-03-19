@@ -1,8 +1,20 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, ConflictException, UnauthorizedException, NotFoundException, BadRequestException } from "@nestjs/common";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { AuthService } from "@repo/services";
 import { procedure, protectedProcedure, t } from "../base/index.js";
+
+function mapNestExceptionToTRPC(error: unknown, fallback: string): TRPCError {
+  if (error instanceof ConflictException)
+    return new TRPCError({ code: "CONFLICT", message: error.message });
+  if (error instanceof UnauthorizedException)
+    return new TRPCError({ code: "UNAUTHORIZED", message: error.message });
+  if (error instanceof NotFoundException)
+    return new TRPCError({ code: "NOT_FOUND", message: error.message });
+  if (error instanceof BadRequestException)
+    return new TRPCError({ code: "BAD_REQUEST", message: error.message });
+  return new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: fallback });
+}
 
 // Validation schemas
 const registerSchema = z.object({
@@ -12,7 +24,7 @@ const registerSchema = z.object({
     .string()
     .min(8)
     .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s])[^\s]{8,}$/,
       "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
     ),
   firstName: z.string().max(100).optional(),
@@ -33,18 +45,19 @@ const forgotPasswordSchema = z.object({
 });
 
 const resetPasswordSchema = z.object({
-  token: z.string(),
+  email: z.string().email(),
+  code: z.string().length(6),
   newPassword: z
     .string()
     .min(8)
     .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s])[^\s]{8,}$/,
       "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
     ),
 });
 
 const verifyEmailSchema = z.object({
-  token: z.string(),
+  code: z.string().length(6),
 });
 
 const changePasswordSchema = z.object({
@@ -53,7 +66,7 @@ const changePasswordSchema = z.object({
     .string()
     .min(8)
     .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s])[^\s]{8,}$/,
       "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
     ),
 });
@@ -79,17 +92,7 @@ export class AuthRouter {
         const result = await this.authService.register(input);
         return result;
       } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Registration failed";
-        if (message.includes("already")) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message,
-          });
-        }
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message,
-        });
+        throw mapNestExceptionToTRPC(error, "Registration failed");
       }
     }),
 
@@ -99,11 +102,7 @@ export class AuthRouter {
         const result = await this.authService.login(input);
         return result;
       } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Login failed";
-        throw new TRPCError({
-          code: "UNAUTHORIZED",
-          message,
-        });
+        throw mapNestExceptionToTRPC(error, "Login failed");
       }
     }),
 
@@ -115,11 +114,7 @@ export class AuthRouter {
           const tokens = await this.authService.refreshTokens(input.refreshToken);
           return tokens;
         } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : "Token refresh failed";
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message,
-          });
+          throw mapNestExceptionToTRPC(error, "Token refresh failed");
         }
       }),
 
@@ -142,46 +137,27 @@ export class AuthRouter {
           await this.authService.resetPassword(input);
           return { message: "Password reset successfully" };
         } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : "Password reset failed";
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message,
-          });
+          throw mapNestExceptionToTRPC(error, "Password reset failed");
         }
       }),
 
     // Verify email
-    verifyEmail: procedure.input(verifyEmailSchema).mutation(async ({ input }) => {
+    verifyEmail: protectedProcedure.input(verifyEmailSchema).mutation(async ({ ctx, input }) => {
       try {
-        await this.authService.verifyEmail(input);
+        await this.authService.verifyEmail(ctx.auth.userId!, input);
         return { message: "Email verified successfully" };
       } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Email verification failed";
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message,
-        });
+        throw mapNestExceptionToTRPC(error, "Email verification failed");
       }
     }),
 
     // Get user profile (protected)
     getMe: protectedProcedure.query(async ({ ctx }) => {
-      if (!ctx.auth.userId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "User ID is missing",
-        });
-      }
-
       try {
-        const profile = await this.authService.getMe(ctx.auth.userId);
+        const profile = await this.authService.getMe(ctx.auth.userId!);
         return profile;
       } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Failed to get profile";
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message,
-        });
+        throw mapNestExceptionToTRPC(error, "Failed to get profile");
       }
     }),
 
@@ -189,35 +165,17 @@ export class AuthRouter {
     changePassword: protectedProcedure
       .input(changePasswordSchema)
       .mutation(async ({ ctx, input }) => {
-        if (!ctx.auth.userId) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "User ID is missing",
-          });
-        }
-
         try {
-          await this.authService.changePassword(ctx.auth.userId, input);
+          await this.authService.changePassword(ctx.auth.userId!, input);
           return { message: "Password changed successfully" };
         } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : "Password change failed";
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message,
-          });
+          throw mapNestExceptionToTRPC(error, "Password change failed");
         }
       }),
 
     // Logout (protected)
     logout: protectedProcedure.mutation(async ({ ctx }) => {
-      if (!ctx.auth.userId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "User ID is missing",
-        });
-      }
-
-      await this.authService.logout(ctx.auth.userId);
+      await this.authService.logout(ctx.auth.userId!);
       return { message: "Successfully logged out" };
     }),
   });

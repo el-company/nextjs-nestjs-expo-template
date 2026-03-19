@@ -9,6 +9,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
+import { createHash } from "crypto";
 import * as bcrypt from "bcrypt";
 import { PostHogService } from "@repo/analytics";
 import type {
@@ -30,6 +31,11 @@ import {
 } from "./dto/index.js";
 import { EMAIL_SERVICE, USER_REPOSITORY, VERIFICATION_CODE_SERVICE } from "./tokens.js";
 import { parseExpiryToMs } from "./utils.js";
+
+// SHA-256 is sufficient for high-entropy random tokens (no key-stretching needed)
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 // Repository interface - to be implemented by the consumer
 export interface UserRepository {
@@ -147,9 +153,8 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user);
 
-    const refreshTokenHash = await bcrypt.hash(tokens.refreshToken, this.SALT_ROUNDS);
     await repo.update(user.id, {
-      refreshToken: refreshTokenHash,
+      refreshToken: hashToken(tokens.refreshToken),
       refreshTokenExpires: new Date(Date.now() + parseExpiryToMs(this.REFRESH_TOKEN_EXPIRY)),
     });
 
@@ -201,9 +206,8 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user);
 
-    const refreshTokenHash = await bcrypt.hash(tokens.refreshToken, this.SALT_ROUNDS);
     await repo.update(user.id, {
-      refreshToken: refreshTokenHash,
+      refreshToken: hashToken(tokens.refreshToken),
       refreshTokenExpires: new Date(Date.now() + parseExpiryToMs(this.REFRESH_TOKEN_EXPIRY)),
     });
 
@@ -231,8 +235,7 @@ export class AuthService {
       throw new UnauthorizedException("Invalid refresh token");
     }
 
-    const isRefreshTokenValid = await bcrypt.compare(refreshToken, user.refreshToken);
-    if (!isRefreshTokenValid) {
+    if (hashToken(refreshToken) !== user.refreshToken) {
       throw new UnauthorizedException("Invalid refresh token");
     }
 
@@ -242,9 +245,8 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user);
 
-    const refreshTokenHash = await bcrypt.hash(tokens.refreshToken, this.SALT_ROUNDS);
     await repo.update(user.id, {
-      refreshToken: refreshTokenHash,
+      refreshToken: hashToken(tokens.refreshToken),
       refreshTokenExpires: new Date(Date.now() + parseExpiryToMs(this.REFRESH_TOKEN_EXPIRY)),
     });
 
@@ -294,7 +296,11 @@ export class AuthService {
     }
 
     const newPasswordHash = await bcrypt.hash(dto.newPassword, this.SALT_ROUNDS);
-    await this.userRepository.update(userId, { passwordHash: newPasswordHash });
+    await this.userRepository.update(userId, {
+      passwordHash: newPasswordHash,
+      refreshToken: null,
+      refreshTokenExpires: null,
+    });
 
     this.trackEvent(userId, "password_changed", {});
     this.logger.log(`Password changed for user: ${user.email}`);
@@ -350,7 +356,11 @@ export class AuthService {
     await this.verificationCodeService.verifyCode(user.id, "password_reset", dto.code);
 
     const newPasswordHash = await bcrypt.hash(dto.newPassword, this.SALT_ROUNDS);
-    await this.userRepository.update(user.id, { passwordHash: newPasswordHash });
+    await this.userRepository.update(user.id, {
+      passwordHash: newPasswordHash,
+      refreshToken: null,
+      refreshTokenExpires: null,
+    });
 
     this.trackEvent(user.id, "password_reset_completed", {});
     this.logger.log(`Password reset completed for: ${user.email}`);
@@ -489,7 +499,11 @@ export class AuthService {
 
   private isUniqueConstraintError(error: unknown): boolean {
     if (!error || typeof error !== "object") return false;
-    const err = error as { code?: string };
+    const err = error as { code?: string; name?: string };
+    // "23505" is the PostgreSQL unique_violation error code.
+    // This ties the service to PostgreSQL — acceptable for this template,
+    // but would need adapting for other databases.
+    // TypeORM surfaces this as QueryFailedError with err.code === "23505".
     return err.code === "23505";
   }
 }

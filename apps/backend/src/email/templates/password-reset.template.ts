@@ -1,5 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const mjml2html = require("mjml");
+import mjml2html from "mjml";
 
 interface PasswordResetData {
   code: string;

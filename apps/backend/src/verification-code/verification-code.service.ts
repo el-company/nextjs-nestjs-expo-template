@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import { randomInt } from "crypto";
 import { Repository } from "typeorm";
 import { VerificationCode, VerificationCodePurpose } from "@repo/db";
 import type { IVerificationCodeService } from "@repo/services";
@@ -92,6 +93,6 @@ export class VerificationCodeService implements IVerificationCodeService {
   }
 
   private generateSixDigitCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return randomInt(100000, 1000000).toString();
   }
 }

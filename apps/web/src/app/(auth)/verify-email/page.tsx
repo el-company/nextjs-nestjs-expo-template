@@ -3,10 +3,8 @@
 import { useState, useRef, type JSX } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/providers/auth-provider";
+import { useAuth, getApiUrl } from "@/providers/auth-provider";
 import { Button } from "@repo/ui/components/base/button";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export default function VerifyEmailPage(): JSX.Element {
   const router = useRouter();
@@ -68,7 +66,7 @@ export default function VerifyEmailPage(): JSX.Element {
         return;
       }
 
-      const response = await fetch(`${API_URL}/auth/verify-email`, {
+      const response = await fetch(`${getApiUrl()}/auth/verify-email`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -99,7 +97,7 @@ export default function VerifyEmailPage(): JSX.Element {
         return;
       }
 
-      const response = await fetch(`${API_URL}/auth/resend-verification`, {
+      const response = await fetch(`${getApiUrl()}/auth/resend-verification`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });

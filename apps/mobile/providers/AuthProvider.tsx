@@ -24,9 +24,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
-const TOKEN_EXPIRY_KEY = "token_expiry";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -35,37 +33,30 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Access token and expiry kept in memory — no SecureStore reads per API call
+  const accessTokenRef = useRef<string | null>(null);
+  const accessTokenExpiresAtRef = useRef<number>(0);
   const refreshPromiseRef = useRef<Promise<TokenPair | null> | null>(null);
 
-  const getStoredTokens = useCallback(async () => {
-    try {
-      const accessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
-      const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
-      const expiryStr = await SecureStore.getItemAsync(TOKEN_EXPIRY_KEY);
-      const expiresAt = expiryStr ? parseInt(expiryStr, 10) : 0;
-      return { accessToken, refreshToken, expiresAt };
-    } catch (err) {
-      console.error("Error getting stored tokens:", err);
-      return { accessToken: null, refreshToken: null, expiresAt: 0 };
-    }
-  }, []);
-
   const storeTokens = useCallback(async (tokens: TokenPair) => {
+    const expiresAt = tokens.expiresAt || Date.now() + tokens.expiresIn;
+    // Keep access token in memory
+    accessTokenRef.current = tokens.accessToken;
+    accessTokenExpiresAtRef.current = expiresAt;
+    // Persist only refresh token to secure storage
     try {
-      const expiresAt = tokens.expiresAt || Date.now() + tokens.expiresIn;
-      await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, tokens.accessToken);
       await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokens.refreshToken);
-      await SecureStore.setItemAsync(TOKEN_EXPIRY_KEY, String(expiresAt));
     } catch (err) {
-      console.error("Error storing tokens:", err);
+      console.error("Error storing refresh token:", err);
     }
   }, []);
 
   const clearTokens = useCallback(async () => {
+    accessTokenRef.current = null;
+    accessTokenExpiresAtRef.current = 0;
     try {
-      await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
       await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
-      await SecureStore.deleteItemAsync(TOKEN_EXPIRY_KEY);
     } catch (err) {
       console.error("Error clearing tokens:", err);
     }
@@ -78,13 +69,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     refreshPromiseRef.current = (async () => {
       try {
-        const stored = await getStoredTokens();
-        if (!stored.refreshToken) return null;
+        const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+        if (!refreshToken) return null;
 
         const response = await fetch(`${getApiUrl()}/auth/refresh`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refreshToken: stored.refreshToken }),
+          body: JSON.stringify({ refreshToken }),
         });
 
         if (!response.ok) {
@@ -107,22 +98,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     })();
 
     return refreshPromiseRef.current;
-  }, [getStoredTokens, storeTokens, clearTokens]);
+  }, [storeTokens, clearTokens]);
 
   const getToken = useCallback(async (): Promise<string | null> => {
-    const stored = await getStoredTokens();
-    if (!stored.accessToken) {
+    const token = accessTokenRef.current;
+    if (!token) {
       const newTokens = await refreshTokens();
       return newTokens?.accessToken || null;
     }
 
-    if (stored.expiresAt && stored.expiresAt - Date.now() < 60 * 1000) {
+    if (accessTokenExpiresAtRef.current && accessTokenExpiresAtRef.current - Date.now() < 60 * 1000) {
       const newTokens = await refreshTokens();
       return newTokens?.accessToken || null;
     }
 
-    return stored.accessToken;
-  }, [getStoredTokens, refreshTokens]);
+    return token;
+  }, [refreshTokens]);
 
   const fetchUser = useCallback(async (): Promise<AuthUser | null> => {
     const token = await getToken();

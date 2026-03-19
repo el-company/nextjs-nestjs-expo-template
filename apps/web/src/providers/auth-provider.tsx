@@ -41,7 +41,7 @@ function isPublicRoute(pathname: string): boolean {
   );
 }
 
-function getApiUrl(): string {
+export function getApiUrl(): string {
   return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 }
 
@@ -216,7 +216,8 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     }
     clearTokens();
     setUser(null);
-  }, [getToken, clearTokens]);
+    router.replace("/sign-in");
+  }, [getToken, clearTokens, router]);
 
   useEffect(() => {
     let isMounted = true;

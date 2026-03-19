@@ -4,8 +4,7 @@ import { useState, useRef, Suspense, type JSX } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@repo/ui/components/base/button";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+import { getApiUrl } from "@/providers/auth-provider";
 
 function ResetPasswordForm(): JSX.Element {
   const router = useRouter();
@@ -65,7 +64,7 @@ function ResetPasswordForm(): JSX.Element {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/auth/reset-password`, {
+      const response = await fetch(`${getApiUrl()}/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code, newPassword: password }),
