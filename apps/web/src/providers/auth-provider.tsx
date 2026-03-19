@@ -6,6 +6,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   useRef,
   type ReactNode,
   type JSX,
@@ -238,16 +239,19 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     };
   }, []);
 
-  const value: AuthContextValue = {
-    user,
-    isLoading,
-    isAuthenticated: !!user,
-    login,
-    register,
-    logout,
-    getToken,
-    refreshTokens,
-  };
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      isLoading,
+      isAuthenticated: !!user,
+      login,
+      register,
+      logout,
+      getToken,
+      refreshTokens,
+    }),
+    [user, isLoading, login, register, logout, getToken, refreshTokens]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

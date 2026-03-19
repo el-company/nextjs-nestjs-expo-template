@@ -1,5 +1,3 @@
-"use client";
-
 import { type JSX } from "react";
 
 export default function ProfilePage(): JSX.Element {

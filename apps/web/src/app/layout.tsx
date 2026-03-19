@@ -8,6 +8,7 @@ import { ReduxProvider } from "@/providers/redux-provider";
 import { PostHogProvider } from "@/providers/posthog-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { Navbar } from "@/components/navbar";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 export const metadata: Metadata = {
   title: "App Template",
@@ -29,7 +30,9 @@ export default function RootLayout({
                 <AppTRPCProvider>
                   <div className="flex flex-col min-h-screen">
                     <Navbar />
-                    <main className="flex-grow">{children}</main>
+                    <main className="flex-grow">
+                      <ErrorBoundary>{children}</ErrorBoundary>
+                    </main>
                   </div>
                 </AppTRPCProvider>
               </ReduxProvider>

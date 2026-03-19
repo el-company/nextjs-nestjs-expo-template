@@ -1,7 +1,15 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { Button } from "@repo/ui/components/base/button";
 import { type JSX } from "react";
-import { AllComponentsDemo } from "@/components/demos/all-components-demo";
+
+const AllComponentsDemo = dynamic(
+  () =>
+    import("@/components/demos/all-components-demo").then(
+      (m) => m.AllComponentsDemo
+    ),
+  { loading: () => <div className="animate-pulse h-48 w-full bg-muted rounded-lg" /> }
+);
 
 export default function Demo(): JSX.Element {
   return (
