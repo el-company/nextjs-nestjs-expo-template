@@ -443,7 +443,6 @@ async function example() {
 
   console.log("\n--- Getting Values ---");
   console.log(`DB_HOST: ${envManager.getValue("DB_HOST")}`); // Might be undefined depending on example
-  console.log(`CLERK_SECRET_KEY: ${envManager.getValue("CLERK_SECRET_KEY")}`); // Might be undefined
   console.log(`NON_EXISTENT_KEY: ${envManager.getValue("NON_EXISTENT_KEY")}`);
 
   console.log("\n--- Setting Values ---");

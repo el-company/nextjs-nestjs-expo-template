@@ -12,7 +12,7 @@ import { ConfigService } from "@nestjs/config";
 export class TRPCService {
   private readonly logger = new Logger(TRPCService.name);
   private readonly redis: Redis;
-  private readonly TOKEN_EXPIRY = 5 * 60; // 5 minutes in seconds
+  private readonly TOKEN_EXPIRY = 5 * 60; // 5 minutes in seconds (upper bound)
   private readonly useRedisCaching: boolean;
 
   constructor(
@@ -112,36 +112,40 @@ export class TRPCService {
         }
       }
 
-      // Validate the session token
-      const isValid = await this.authService.validateSession(token);
+      // Validate the JWT token
+      const payload = await this.authService.validateToken(token);
 
-      if (isValid) {
-        // Get the user from the token
-        const user = await this.authService.getUserFromToken(token);
+      if (payload) {
+        const authData: AuthData = {
+          userId: payload.sub,
+          isAuthenticated: true,
+          user: {
+            id: payload.sub,
+            email: payload.email,
+            username: payload.username,
+            firstName: null,
+            lastName: null,
+            imageUrl: null,
+            roles: payload.roles,
+          },
+        };
 
-        if (user) {
-          const authData: AuthData = {
-            userId: user.id,
-            isAuthenticated: true,
-            user: {
-              id: user.id,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              email: user.emailAddresses[0]?.emailAddress || null,
-              imageUrl: user.imageUrl,
-            },
-          };
+        context.auth = authData;
 
-          context.auth = authData;
+        // Cache the auth data in Redis if enabled
+        if (this.useRedisCaching && this.redis) {
+          const cacheKey = `auth:token:${token}`;
+          const nowSeconds = Math.floor(Date.now() / 1000);
+          const exp = payload.exp || 0;
+          const ttlFromExp = exp > nowSeconds ? exp - nowSeconds : 0;
+          const ttl = ttlFromExp > 0 ? Math.min(this.TOKEN_EXPIRY, ttlFromExp) : this.TOKEN_EXPIRY;
 
-          // Cache the auth data in Redis if enabled
-          if (this.useRedisCaching && this.redis) {
-            const cacheKey = `auth:token:${token}`;
+          if (ttl > 0) {
             await this.redis.set(
               cacheKey,
               JSON.stringify(authData),
               "EX",
-              this.TOKEN_EXPIRY
+              ttl
             );
           }
         }

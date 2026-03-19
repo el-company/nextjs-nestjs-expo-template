@@ -144,7 +144,7 @@ export const PostHogPageView: React.FC = () => {
 };
 
 /**
- * Component to identify users with Clerk authentication
+ * Component to identify users with application authentication
  */
 export const PostHogIdentify: React.FC<{
   userId?: string;

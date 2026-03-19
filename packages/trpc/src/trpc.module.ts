@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { TRPCService } from "./trpc.service.js";
 import { TRPCPanelController } from "./trpc-panel.controller.js";
-import { AuthService } from "@repo/services";
+import { AuthModule } from "@repo/services";
 import { AppRouterClass } from "./routers/index.js";
 import { BasicRouter } from "./routers/routers/basic.router.js";
 import { AuthRouter } from "./routers/routers/auth.router.js";
@@ -15,6 +15,7 @@ import { PostHogModule } from "@repo/analytics";
       isGlobal: true,
     }),
     PostHogModule,
+    AuthModule,
   ],
   providers: [
     TRPCService,
@@ -22,7 +23,6 @@ import { PostHogModule } from "@repo/analytics";
     BasicRouter,
     AuthRouter,
     ChatRoomRouter,
-    AuthService,
   ],
   exports: [TRPCService],
   controllers: [TRPCPanelController],

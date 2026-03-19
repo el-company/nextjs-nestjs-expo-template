@@ -95,7 +95,7 @@ trpcService.applyMiddleware(app);
 Contains shared services that can be used across backend and frontend where applicable.
 
 - **Key Components:**
-  - `auth/` - Authentication services (Clerk integration)
+  - `auth/` - Authentication services
   - `redis/` - Redis connection and cache services
   - `webhooks/` - Webhook handling services
 

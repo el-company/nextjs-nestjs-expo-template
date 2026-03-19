@@ -7,13 +7,6 @@ export const envSchema = z.object({
     .enum(["development", "test", "production"])
     .default("development"),
   EXPO_PUBLIC_TRPC_URL: z.string().url(),
-  EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: z
-    .string()
-    .min(1, "Clerk publishable key cannot be empty")
-    .refine(
-      (val) => !val.includes("clerk-publishable-key"),
-      "Clerk publishable key cannot be a placeholder value"
-    ),
   EXPO_PUBLIC_POSTHOG_KEY: z
     .string()
     .min(1)
@@ -39,8 +32,6 @@ function validateEnv() {
   try {
     const parsedEnv = envSchema.parse({
       EXPO_PUBLIC_TRPC_URL: process.env.EXPO_PUBLIC_TRPC_URL,
-      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:
-        process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
       EXPO_PUBLIC_POSTHOG_KEY: process.env.EXPO_PUBLIC_POSTHOG_KEY,
       EXPO_PUBLIC_POSTHOG_HOST: process.env.EXPO_PUBLIC_POSTHOG_HOST,
     });
@@ -94,10 +85,7 @@ const baseConfig: Omit<ExpoConfig, "extra"> = {
     },
     package: "com.yourcompany.appslug",
   },
-  // Note: ignoreVersionWarnings is deprecated/not standard, handle updates manually
-  // newArchEnabled might not be needed unless specifically targeting New Architecture
   experiments: {
-    // reactCanary: false, // Usually default or managed by Expo version
     tsconfigPaths: true,
   },
   scheme: "appslug",
@@ -105,15 +93,12 @@ const baseConfig: Omit<ExpoConfig, "extra"> = {
     bundler: "metro",
   },
   owner: "baris5",
-  // Add other valid ExpoConfig fields here if needed
 };
 
 // Export a function that returns the final config object, compatible with Expo CLI
 export default ({ config }: ConfigContext): ExpoConfig => {
   const extraConfig = {
     EXPO_PUBLIC_TRPC_URL: process.env.EXPO_PUBLIC_TRPC_URL,
-    EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:
-      process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
     EXPO_PUBLIC_POSTHOG_KEY: process.env.EXPO_PUBLIC_POSTHOG_KEY,
     EXPO_PUBLIC_POSTHOG_HOST:
       process.env.EXPO_PUBLIC_POSTHOG_HOST || "https://app.posthog.com",
@@ -130,6 +115,5 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ...config.extra, // Preserve any extra config from app.json/plugins
       ...extraConfig, // Add our dynamic extra config
     },
-    // Add other properties like plugins, hooks, etc. here if needed
   };
 };

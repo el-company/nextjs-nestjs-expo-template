@@ -5,7 +5,7 @@ import {
   createQueryClient,
   createTRPCClient,
 } from "../utils/trpc";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "./AuthProvider";
 import { type TRPCClient } from "@trpc/client";
 import { type AppRouter } from "@repo/trpc";
 

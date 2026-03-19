@@ -1,28 +1,61 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-// Create route matchers for protected routes
-const publicRoutes = createRouteMatcher(["/", "/sign-in", "/sign-up"]);
-const ignoredRoutes = createRouteMatcher(["/api/trpc"]);
+// Public routes that don't require authentication
+const publicRoutes = [
+  "/",
+  "/sign-in",
+  "/sign-up",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+];
 
-export default clerkMiddleware(async (auth, req) => {
-  // If the request is for a public route, don't enforce authentication
-  if (publicRoutes(req)) {
-    return;
+// Routes to ignore (API, static files, etc.)
+const ignoredRoutes = ["/api/trpc", "/_next", "/favicon.ico"];
+
+function isPublicRoute(pathname: string): boolean {
+  return publicRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+}
+
+function isIgnoredRoute(pathname: string): boolean {
+  return ignoredRoutes.some((route) => pathname.startsWith(route));
+}
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Skip ignored routes
+  if (isIgnoredRoute(pathname)) {
+    return NextResponse.next();
   }
 
-  // If the request is for an ignored route, don't enforce authentication
-  if (ignoredRoutes(req)) {
-    return;
+  // Allow public routes
+  if (isPublicRoute(pathname)) {
+    return NextResponse.next();
   }
 
-  // For all other routes, protect them
-  await auth.protect();
-});
+  // Check for refresh token cookie (httpOnly).
+  // Note: this is an existence check only — the token may be expired or invalid.
+  // Full JWT validation is intentionally deferred to the API layer to keep
+  // middleware fast. A 401 from the API will trigger token refresh or logout.
+  const refreshToken = request.cookies.get("refresh_token")?.value;
+
+  if (!refreshToken) {
+    const signInUrl = new URL("/sign-in", request.url);
+    signInUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(signInUrl);
+  }
+  return NextResponse.next();
+}
 
 export const config = {
-  // Matches all paths except for
-  // - Files in the public directory
-  // - _next directory
-  // - favicon.ico, etc.
-  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
+  matcher: [
+    // Match all paths except static files and images
+    "/((?!.*\\..*|_next).*)",
+    "/",
+    "/(api|trpc)(.*)",
+  ],
 };

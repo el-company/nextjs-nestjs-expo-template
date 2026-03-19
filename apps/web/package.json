@@ -17,9 +17,10 @@
     "fullclean": "rm -rf .next && rm -rf node_modules && rm -rf .turbo"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.0.1",
     "@reduxjs/toolkit": "^2.11.2",
+    "jose": "^6.2.0",
     "@repo/trpc": "workspace:*",
+    "@repo/services": "workspace:*",
     "@repo/ui": "workspace:*",
     "@repo/websockets": "workspace:*",
     "@t3-oss/env-nextjs": "^0.13.10",

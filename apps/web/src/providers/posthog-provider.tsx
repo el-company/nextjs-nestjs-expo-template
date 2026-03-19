@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, type ReactNode, Suspense } from "react";
 import posthog from "posthog-js";
 import { PostHogProvider as PHProvider, usePostHog } from "posthog-js/react";
-import { useUser } from "@clerk/nextjs";
+import { useAuth } from "@/providers/auth-provider";
 import { env } from "@/env";
 
 // Initialize PostHog when the client side component mounts
@@ -22,23 +22,23 @@ interface PostHogProviderProps {
   children: ReactNode;
 }
 
-// User identification component to handle Clerk auth integration
+// User identification component to handle auth integration
 function PostHogUserIdentification(): React.ReactElement | null {
-  const { user, isSignedIn } = useUser();
+  const { user, isAuthenticated } = useAuth();
   const posthogClient = usePostHog();
 
   useEffect(() => {
-    if (isSignedIn) {
+    if (isAuthenticated && user) {
       posthogClient.identify(user.id, {
-        email: user.primaryEmailAddress?.emailAddress,
-        name: user.fullName ?? `${user.firstName ?? ""} ${user.lastName ?? ""}`,
+        email: user.email,
+        name: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.username,
         first_name: user.firstName,
         last_name: user.lastName,
       });
     } else {
       posthogClient.reset();
     }
-  }, [isSignedIn, user, posthogClient]);
+  }, [isAuthenticated, user, posthogClient]);
 
   return null;
 }

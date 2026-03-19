@@ -1,11 +1,11 @@
 "use client";
 
-import { type JSX } from "react";
+import { type JSX, useMemo, useRef, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink, type TRPCClient } from "@trpc/client";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import superjson from "superjson";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/providers/auth-provider";
 import { TRPCProvider, type AppRouter } from "@/utils/trpc";
 import { env } from "@/env";
 
@@ -41,20 +41,29 @@ export function AppTRPCProvider({ children }: TRPCProviderProps): JSX.Element {
   const { getToken } = useAuth();
   const queryClient = getQueryClient();
 
-  const trpcClient = createTRPCClient({
-    links: [
-      httpBatchLink({
-        url: env.NEXT_PUBLIC_TRPC_URL,
-        transformer: superjson,
-        async headers() {
-          const token = await getToken();
-          return {
-            authorization: token ? `Bearer ${token}` : "",
-          };
-        },
+  const getTokenRef = useRef(getToken);
+  useEffect(() => {
+    getTokenRef.current = getToken;
+  }, [getToken]);
+
+  const trpcClient = useMemo(
+    () =>
+      createTRPCClient({
+        links: [
+          httpBatchLink({
+            url: env.NEXT_PUBLIC_TRPC_URL,
+            transformer: superjson,
+            async headers() {
+              const token = await getTokenRef.current();
+              return {
+                authorization: token ? `Bearer ${token}` : "",
+              };
+            },
+          }),
+        ],
       }),
-    ],
-  });
+    []
+  );
 
   return (
     <QueryClientProvider client={queryClient}>

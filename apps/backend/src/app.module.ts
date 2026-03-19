@@ -1,13 +1,17 @@
 import { Module } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
 import { DatabaseModule } from "@repo/db";
-import { AuthModule, RedisModule, WebhooksModule } from "@repo/services";
+import { AuthModule, JwtAuthGuard, RedisModule } from "@repo/services";
 import { AppConfigModule } from "./config/app-config.module.js";
+import { UsersModule } from "./users/users.module.js";
 
 import { TRPCModule, TRPCPanelController } from "@repo/trpc";
 import { PostHogModule } from "@repo/analytics";
 import { WebsocketsModule } from "@repo/websockets/server";
 import { HealthModule } from "./health/health.module.js";
+import { EmailModule } from "./email/email.module.js";
+import { VerificationCodeModule } from "./verification-code/verification-code.module.js";
 
 @Module({
   imports: [
@@ -15,16 +19,23 @@ import { HealthModule } from "./health/health.module.js";
       isGlobal: true,
     }),
     TRPCModule,
-    DatabaseModule,
+    DatabaseModule.forRoot(),
     RedisModule,
     PostHogModule,
     AppConfigModule,
+    EmailModule,
+    VerificationCodeModule,
     AuthModule,
+    UsersModule,
     WebsocketsModule,
-    WebhooksModule,
     HealthModule,
   ],
   controllers: [TRPCPanelController],
-  providers: [],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
 })
 export class AppModule {}

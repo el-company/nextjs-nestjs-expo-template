@@ -10,11 +10,23 @@ export const validationSchema = Joi.object({
   DB_USERNAME: Joi.string().required(),
   DB_PASSWORD: Joi.string().required(),
   DB_DATABASE: Joi.string().required(),
-  CLERK_SECRET_KEY: Joi.string().invalid("clerk_secret_key").required(),
-  CLERK_WEBHOOK_SECRET: Joi.string().invalid("clerk_webhook_secret").required(),
-  CLERK_PUBLISHABLE_KEY: Joi.string()
-    .invalid("clerk_publishable_key")
-    .required(),
+
+  // JWT Authentication
+  JWT_SECRET: Joi.string().min(32).required(),
+  JWT_REFRESH_SECRET: Joi.string().min(32).required(),
+  JWT_ACCESS_EXPIRATION: Joi.string().default("15m"),
+  JWT_REFRESH_EXPIRATION: Joi.string().default("7d"),
+
+  // Web app URL (for email links)
+  WEB_APP_URL: Joi.string().uri().default("http://localhost:3000"),
+
+  // SMTP configuration
+  SMTP_HOST: Joi.string().optional(),
+  SMTP_PORT: Joi.number().default(587),
+  SMTP_USER: Joi.string().optional(),
+  SMTP_PASSWORD: Joi.string().optional(),
+  SMTP_FROM: Joi.string().email().optional(),
+  SMTP_SECURE: Joi.boolean().default(false),
 
   // Redis configuration
   REDIS_URL: Joi.string().uri().optional(),
@@ -28,4 +40,15 @@ export const validationSchema = Joi.object({
 
   // Feature flags
   USE_REDIS_CACHING: Joi.boolean().default(true),
+
+  // Superadmin
+  SUPERADMIN_EMAILS: Joi.string().optional(),
+
+  // Email provider
+  EMAIL_PROVIDER: Joi.string().valid("resend", "smtp").default("resend"),
+
+  // Resend provider
+  RESEND_API_KEY: Joi.string().optional(),
+  RESEND_FROM: Joi.string().email().optional(),
+  DEV_EMAIL_REDIRECT: Joi.string().email().allow("").optional(),
 });
