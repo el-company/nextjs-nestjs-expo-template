@@ -40,6 +40,7 @@ A modern full-stack, type-safe monorepo template with real-time capabilities and
 - **📊 Analytics**: PostHog integration for tracking user behavior
 - **🎨 UI Components**: TailwindCSS with ShadCN UI for web and NativeWind + GlueStack UI for mobile
 - **🧩 Modular Architecture**: Well-organized packages for code sharing
+- **🧪 Integration Tests**: TestContainers-based integration tests with real PostgreSQL and Redis — no mocks
 
 ## 🚀 Quick Start
 
@@ -192,6 +193,62 @@ socket.on(ServerEvents.MESSAGE, (message) => {
   console.log('New message:', message);
 });
 ```
+
+## 🧪 Testing
+
+### Unit tests
+
+```bash
+pnpm test          # all packages
+pnpm test:cov      # with coverage
+```
+
+### Integration tests (TestContainers)
+
+Integration tests spin up real Docker containers (PostgreSQL 16, Redis 7) for every test run — no mocks, no local services required.
+
+> **Requirement**: Docker must be running.
+
+```bash
+# Run only the backend integration tests
+pnpm --filter @repo/backend test:integration
+```
+
+**What is covered:**
+
+| Suite | File | What is tested |
+|---|---|---|
+| Health | `health.integration.spec.ts` | `GET /health` returns `status: ok` |
+| tRPC basic | `trpc-basic.integration.spec.ts` | `hello`, `increment` (auth), `me` (auth) |
+| tRPC chatroom | `trpc-chatroom.integration.spec.ts` | `getRooms`, `createRoom`, `getRoom`, `deleteRoom`, `updateRoomCount` |
+| tRPC auth | `trpc-auth.integration.spec.ts` | `register`, `login`, `refreshToken`, `getUser`, `getMe`, `changePassword`, `forgotPassword`, `logout` |
+
+**Architecture:**
+
+```
+apps/backend/src/__integration__/
+├── helpers/
+│   ├── containers.ts       # Start/stop PostgreSQL + Redis testcontainers
+│   ├── test-app.ts         # NestJS TestingModule factory (no static dataSourceOptions)
+│   └── trpc-caller.ts      # Type-safe tRPC direct caller (no HTTP)
+├── health.integration.spec.ts
+├── trpc-basic.integration.spec.ts
+├── trpc-chatroom.integration.spec.ts
+└── trpc-auth.integration.spec.ts
+```
+
+**How it works:**
+
+1. `startContainers()` pulls `postgres:16-alpine` and `redis:7-alpine` and waits for readiness.
+2. `createTestApp()` builds a `NestJS TestingModule` with `TypeOrmModule.forRoot()` pointed directly at the container (bypasses the static `dataSourceOptions` from `@repo/db`).
+3. `createTestCaller()` uses `t.createCallerFactory(router)` to call tRPC procedures directly — no HTTP overhead.
+4. Authenticated contexts are injected via `authenticatedCtx()` helper so protected procedures can be tested without a real JWT.
+5. `afterAll` stops containers and closes the app.
+
+**Separate Jest config** (`jest.integration.config.cjs`):
+- Longer timeout: 60 s per test (containers need ~10 s to start)
+- `maxWorkers: 1` — suites run sequentially to avoid port conflicts
+- Regex: `*.integration.spec.ts` — never picked up by the unit-test runner
 
 ## 🛠️ Development Scripts
 
