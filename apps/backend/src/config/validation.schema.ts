@@ -40,4 +40,15 @@ export const validationSchema = Joi.object({
 
   // Feature flags
   USE_REDIS_CACHING: Joi.boolean().default(true),
+
+  // Superadmin
+  SUPERADMIN_EMAILS: Joi.string().optional(),
+
+  // Email provider
+  EMAIL_PROVIDER: Joi.string().valid("resend", "smtp").default("resend"),
+
+  // Resend provider
+  RESEND_API_KEY: Joi.string().optional(),
+  RESEND_FROM: Joi.string().email().optional(),
+  DEV_EMAIL_REDIRECT: Joi.string().email().allow("").optional(),
 });
