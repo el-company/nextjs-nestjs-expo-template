@@ -37,3 +37,8 @@ export class AppRouterClass {
 export type AppRouter = ReturnType<AppRouterClass["createRouter"]>;
 export type RouterInputs = inferRouterInputs<AppRouter>;
 export type RouterOutputs = inferRouterOutputs<AppRouter>;
+
+// Re-export individual routers so consumers (e.g. test modules) can register them
+export { BasicRouter } from "./routers/basic.router.js";
+export { AuthRouter } from "./routers/auth.router.js";
+export { ChatRoomRouter } from "./routers/chatroom.router.js";

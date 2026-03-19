@@ -206,15 +206,130 @@ The backend uses the NestJS ConfigModule with environment variables. See `.env.e
    pnpm build
    ```
 
-3. Run tests:
+3. Run unit tests:
    ```bash
-   pnpm test
+   pnpm --filter @repo/backend test
+   pnpm --filter @repo/backend test:cov   # with coverage
    ```
 
-4. Run TypeORM migrations:
+4. Run integration tests (requires Docker):
+   ```bash
+   pnpm --filter @repo/backend test:integration
+   ```
+
+5. Run TypeORM migrations:
    ```bash
    pnpm --filter @repo/db migration:run
    ```
+
+---
+
+## Integration Tests (TestContainers)
+
+Integration tests in `src/__integration__/` use real Docker containers for PostgreSQL and Redis. They do **not** require any locally running services.
+
+### Prerequisites
+
+Docker must be running. No extra configuration needed.
+
+### Running
+
+```bash
+pnpm --filter @repo/backend test:integration
+```
+
+### Directory structure
+
+```
+src/__integration__/
+├── helpers/
+│   ├── containers.ts          # start/stop PostgreSQL + Redis testcontainers
+│   ├── test-app.ts            # NestJS TestingModule factory
+│   └── trpc-caller.ts         # type-safe tRPC direct caller (no HTTP)
+├── health.integration.spec.ts
+├── trpc-basic.integration.spec.ts
+├── trpc-chatroom.integration.spec.ts
+└── trpc-auth.integration.spec.ts
+```
+
+### How it works
+
+#### Container setup
+
+Each test suite calls `startContainers()` which pulls and starts `postgres:16-alpine` and `redis:7-alpine`. Containers are shared within the suite and stopped in `afterAll`.
+
+#### NestJS TestingModule
+
+`createTestApp()` builds a real `NestJS TestingModule` using `TypeOrmModule.forRoot()` with testcontainer credentials (bypassing the static `dataSourceOptions`). Schema is created via `synchronize: true` on the ephemeral DB.
+
+All `@Global()` backend modules (`UsersModule`, `EmailModule`, `VerificationCodeModule`) are imported so `AuthService` can resolve its token-based dependencies (`USER_REPOSITORY`, `EMAIL_SERVICE`, `VERIFICATION_CODE_SERVICE`).
+
+#### tRPC direct caller
+
+```typescript
+import { createTestCaller, authenticatedCtx } from "./helpers/trpc-caller.js";
+
+// Public call
+const caller = createTestCaller(testApp.trpcService);
+const res = await caller.hello();
+
+// Authenticated call (no real JWT needed)
+const authedCaller = createTestCaller(
+  testApp.trpcService,
+  authenticatedCtx(userId, email, username)
+);
+const profile = await authedCaller.auth.getMe();
+```
+
+`t.createCallerFactory(router)` is used under the hood — procedures run in the full DI/DB stack but without any HTTP overhead.
+
+#### Test isolation
+
+Auth tests call `clearUsers()` in `beforeEach` to wipe `users`, `user_roles`, and `verification_codes` between tests. The `roles` table is seeded once in `beforeAll`.
+
+### What is covered
+
+| Suite | Tests |
+|---|---|
+| `health` | `GET /health` |
+| `trpc-basic` | `hello`, `increment`, `me` (auth + unauth variants) |
+| `trpc-chatroom` | `getRooms`, `createRoom`, `getRoom`, `updateRoomCount`, `deleteRoom` |
+| `trpc-auth` | `register`, `login`, `refreshToken`, `getUser`, `getMe`, `changePassword`, `forgotPassword`, `logout` |
+
+### Jest config
+
+`jest.integration.config.cjs` — separate from unit tests:
+- `testRegex: ".*\\.integration\\.spec\\.ts$"`
+- `testTimeout: 60000` (containers need ~10 s to start)
+- `maxWorkers: 1` (sequential to avoid port conflicts)
+
+### Adding new integration tests
+
+```typescript
+// src/__integration__/my-feature.integration.spec.ts
+import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
+import { startContainers, stopContainers } from "./helpers/containers.js";
+import { createTestApp, destroyTestApp, type TestApp } from "./helpers/test-app.js";
+import { createTestCaller } from "./helpers/trpc-caller.js";
+
+let testApp: TestApp;
+
+beforeAll(async () => {
+  const containers = await startContainers();
+  testApp = await createTestApp(containers);
+}, 90_000);
+
+afterAll(async () => {
+  await destroyTestApp(testApp);
+  await stopContainers();
+});
+
+it("my test", async () => {
+  const caller = createTestCaller(testApp.trpcService);
+  const result = await caller.hello();
+  expect(result.greeting).toBe("Hello World");
+});
+```
 
 ## Architecture Decisions
 

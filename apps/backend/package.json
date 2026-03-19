@@ -15,6 +15,7 @@
     "test:cov": "jest --coverage",
     "fullclean": "rm -rf node_modules && rm -rf dist && rm -rf .turbo",
     "type-check": "tsc --noEmit",
+    "test:integration": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.integration.config.cjs --passWithNoTests",
     "test:posthog": "tsx src/scripts/test-posthog.ts"
   },
   "dependencies": {
@@ -56,6 +57,8 @@
     "@nestjs/testing": "^11.1.16",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
+    "@testcontainers/postgresql": "^11.13.0",
+    "@testcontainers/redis": "^11.13.0",
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
@@ -75,6 +78,7 @@
     "socket.io-client": "^4.8.3",
     "source-map-support": "^0.5.21",
     "supertest": "^7.2.2",
+    "testcontainers": "^11.13.0",
     "trpc-ui": "^1.0.15",
     "ts-jest": "^29.4.6",
     "ts-loader": "^9.5.4",

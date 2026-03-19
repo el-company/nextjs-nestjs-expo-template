@@ -17,6 +17,8 @@
     "fullclean": "turbo fullclean && rm -rf node_modules && rm pnpm-lock.yaml",
     "fullcleanwindows": "turbo fullcleanwindows && rd /s /q node_modules && del pnpm-lock.yaml",
     "test": "turbo test",
+    "test:all": "pnpm test && pnpm test:integration",
+    "test:integration": "pnpm --filter @repo/backend test:integration",
     "test:cov": "turbo test:cov",
     "test:ci": "turbo test:ci",
     "test:e2e": "pnpm --filter @repo/web test:e2e",
